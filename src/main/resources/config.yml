@@ -1,0 +1,11 @@
+##本地存储 文件夹路径
+local-storage-folder-path: "./plugins/FIPixelSync/data/"
+## mysql
+mysql:
+  ## 启用mysql的情况下 本地存储会失效
+  enable: false
+  host: localhost
+  port: 3306
+  database: fipixelsync
+  username: root
+  password: 123456

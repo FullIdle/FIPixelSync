@@ -1,0 +1,7 @@
+name: ${rootProject.name}
+main: ${group}
+version: ${version}
+commands:
+  fipixelsync:
+    aliases:
+      - fipsync

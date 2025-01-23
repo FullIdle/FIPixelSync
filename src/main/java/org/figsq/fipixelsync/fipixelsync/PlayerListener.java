@@ -24,16 +24,12 @@ public class PlayerListener implements Listener {
         ReforgedStorageManager manager = (ReforgedStorageManager) Pixelmon.storageManager;
         Map<UUID, PlayerPartyStorage> parties = ReflectionHelper.getPrivateValue(ReforgedStorageManager.class, manager, "parties");
         Map<UUID, PCStorage> pcs = ReflectionHelper.getPrivateValue(ReforgedStorageManager.class, manager, "pcs");
-
+        if (parties.containsKey(uuid)) manager.getSaveAdapter().save(parties.get(uuid));
+        if (pcs.containsKey(uuid)) manager.getSaveAdapter().save(pcs.get(uuid));
         Bukkit.getScheduler().runTask(Main.instance,()->{
-            if (parties.containsKey(uuid)) {
-                manager.getSaveAdapter().save(parties.get(uuid));
-                parties.remove(uuid);
-            }
-            if (pcs.containsKey(uuid)) {
-                manager.getSaveAdapter().save(pcs.get(uuid));
-                pcs.remove(uuid);
-            }
+            pcs.remove(uuid);
+            parties.remove(uuid);
+            manager.extraStorages.removeIf(storage -> storage.uuid.equals(uuid));
         });
     }
 }

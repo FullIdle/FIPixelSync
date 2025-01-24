@@ -23,8 +23,10 @@ import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.UUID;
 
-public class PlayerListener implements Listener {
+public final class PlayerListener implements Listener {
     public static final PlayerListener instance = new PlayerListener();
+
+    private PlayerListener(){}
 
     @EventHandler
     public void quit(PlayerQuitEvent event){

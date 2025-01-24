@@ -19,7 +19,7 @@ public class Main extends JavaPlugin {
     @Override
     public void onEnable() {
         this.getCommand("fipixelsync").setExecutor(new CommandBase());
-        this.getServer().getPluginManager().registerEvents(new PlayerListener(),this);
+        this.getServer().getPluginManager().registerEvents(PlayerListener.instance,this);
         this.getLogger().info("§aPlugin enable!");
     }
 

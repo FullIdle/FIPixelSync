@@ -16,6 +16,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.UUID;
+import java.util.logging.Level;
 
 @Getter
 public class FileStorageSaveAdapter implements IStorageSaveAdapter {
@@ -27,7 +28,7 @@ public class FileStorageSaveAdapter implements IStorageSaveAdapter {
 
     @Override
     public void save(PokemonStorage storage) {
-        System.out.println("save############");
+        Main.instance.getLogger().info("save: "+Bukkit.getOfflinePlayer(storage.uuid).getName());
         NBTTagCompound nbt = storage.writeToNBT(new NBTTagCompound());
         File file = new File(this.folder, storage.getFile().getName());
         File tempFile = new File(file.getPath() + ".temp");
@@ -73,10 +74,11 @@ public class FileStorageSaveAdapter implements IStorageSaveAdapter {
     @Nonnull
     @Override
     public <T extends PokemonStorage> T load(UUID uuid, Class<T> clazz) {
-        System.out.println("load############");
         Player player = Bukkit.getPlayer(uuid);
-        if (player == null)
+        Main.instance.getLogger().info("load: "+uuid);
+        if (player == null) {
             Main.instance.getLogger().warning("加了本插件后修改离线玩家数据大概率无法同步!!!!");
+        }
         try {
             T storage = clazz.getConstructor(UUID.class).newInstance(uuid);
             File file = new File(this.folder, storage.getFile().getName());

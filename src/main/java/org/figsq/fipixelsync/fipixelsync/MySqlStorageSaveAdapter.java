@@ -113,7 +113,7 @@ public class MySqlStorageSaveAdapter implements IStorageSaveAdapter {
 
     @Override
     public void save(PokemonStorage storage) {
-        System.out.println("save############PS");
+        Main.instance.getLogger().info("save: "+Bukkit.getOfflinePlayer(storage.uuid).getName());
         String dataname = storage.getFile().getName();
         Connection connect = connect();
         String nbt = storage.writeToNBT(new NBTTagCompound()).toString();
@@ -130,7 +130,8 @@ public class MySqlStorageSaveAdapter implements IStorageSaveAdapter {
     @Nonnull
     @Override
     public <T extends PokemonStorage> T load(UUID uuid, Class<T> clazz) {
-        System.out.println("load############PS");
+        Main.instance.getLogger().info("load: "+uuid);
+
         Player player = Bukkit.getPlayer(uuid);
         if (player == null)
             Main.instance.getLogger().warning("加了本插件后修改离线玩家数据大概率无法同步!!!!");

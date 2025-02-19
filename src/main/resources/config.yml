@@ -9,3 +9,5 @@ mysql:
   database: fipixelsync
   username: root
   password: 123456
+#true的情况下会使插件在玩家数据变动的情况下进行数据的写入 默认false使用数据库的时候建议开启
+high-frequency-writing: false

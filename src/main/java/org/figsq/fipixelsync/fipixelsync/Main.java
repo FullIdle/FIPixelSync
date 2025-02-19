@@ -9,6 +9,7 @@ import java.io.File;
 public class Main extends JavaPlugin {
     public static Class<?> pixelClazz;
     public static Main instance;
+    public static boolean high_frequency_writing = false;
 
     @Override
     public void onLoad() {
@@ -27,6 +28,8 @@ public class Main extends JavaPlugin {
     public void reloadConfig() {
         this.saveDefaultConfig();
         super.reloadConfig();
+        FileConfiguration config = this.getConfig();
+        high_frequency_writing = config.getBoolean("high-frequency-writing");
 
         try {
             pixelClazz = Class.forName("com.pixelmonmod.pixelmon.Pixelmon");
@@ -39,7 +42,6 @@ public class Main extends JavaPlugin {
 
             com.pixelmonmod.pixelmon.api.storage.IStorageSaveAdapter adapter;
 
-            FileConfiguration config = this.getConfig();
             if (config.getBoolean("mysql.enable")) {
                 String host = config.getString("mysql.host");
                 int port = config.getInt("mysql.port");

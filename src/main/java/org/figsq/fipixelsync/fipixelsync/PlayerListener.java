@@ -2,6 +2,7 @@ package org.figsq.fipixelsync.fipixelsync;
 
 import catserver.api.bukkit.event.ForgeEvent;
 import com.pixelmonmod.pixelmon.Pixelmon;
+import com.pixelmonmod.pixelmon.api.events.EconomyEvent;
 import com.pixelmonmod.pixelmon.api.events.FishingEvent;
 import com.pixelmonmod.pixelmon.api.events.LevelUpEvent;
 import com.pixelmonmod.pixelmon.api.events.pokemon.*;
@@ -180,6 +181,12 @@ public final class PlayerListener implements Listener {
         //任务完成
         if (event.getForgeEvent() instanceof FinishQuestEvent){
             FinishQuestEvent e = (FinishQuestEvent) event.getForgeEvent();
+            runSimpleSave(Pixelmon.storageManager.getParty(e.player.func_110124_au()));
+            return;
+        }
+        //玩家钱变化
+        if (event.getForgeEvent() instanceof EconomyEvent.PostTransactionEvent) {
+            EconomyEvent.PostTransactionEvent e = (EconomyEvent.PostTransactionEvent) event.getForgeEvent();
             runSimpleSave(Pixelmon.storageManager.getParty(e.player.func_110124_au()));
             return;
         }

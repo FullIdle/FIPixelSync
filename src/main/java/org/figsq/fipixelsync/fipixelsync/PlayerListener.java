@@ -12,6 +12,7 @@ import com.pixelmonmod.pixelmon.api.events.storage.ChangeStorageEvent;
 import com.pixelmonmod.pixelmon.api.storage.*;
 import com.pixelmonmod.pixelmon.storage.PlayerPartyStorage;
 import com.pixelmonmod.pixelmon.storage.ReforgedStorageManager;
+import com.pixelmonmod.pixelmon.storage.adapters.ReforgedFileAdapter;
 import com.pixelmonmod.pixelmon.util.helpers.ReflectionHelper;
 import lombok.SneakyThrows;
 import org.bukkit.Bukkit;
@@ -44,8 +45,21 @@ public final class PlayerListener implements Listener {
         Map<UUID, PlayerPartyStorage> parties = getParties();
         Map<UUID, PCStorage> pcs = getPcs();
         IStorageSaveAdapter adapter = manager.getSaveAdapter();
-        if (parties.containsKey(uuid)) adapter.save(parties.get(uuid));
-        if (pcs.containsKey(uuid)) adapter.save(pcs.get(uuid));
+        ReforgedFileAdapter reforgedFileAdapter = new ReforgedFileAdapter();
+        if (parties.containsKey(uuid)) {
+            PlayerPartyStorage storage = parties.get(uuid);
+            adapter.save(storage);
+            if (Main.pixelmon_save_call) {
+                reforgedFileAdapter.save(storage);
+            }
+        }
+        if (pcs.containsKey(uuid)) {
+            PCStorage storage = pcs.get(uuid);
+            adapter.save(storage);
+            if (Main.pixelmon_save_call) {
+                reforgedFileAdapter.save(storage);
+            }
+        }
     }
 
     @EventHandler(

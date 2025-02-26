@@ -11,3 +11,7 @@ mysql:
   password: 123456
 #true的情况下会使插件在玩家数据变动的情况下进行数据的写入 默认false使用数据库的时候建议开启
 high-frequency-writing: false
+
+#是否在数据保存的时候将Pixelmon原版保存一起调用
+#只会在玩家退出的时候调用
+pixelmon-save-call: false

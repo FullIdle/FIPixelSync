@@ -16,6 +16,7 @@ public class Main extends JavaPlugin {
     public static Main instance;
     public static boolean high_frequency_writing = false;
     public static IStorageSaveAdapter saveAdapter;
+    public static boolean pixelmon_save_call = false;
 
     @Override
     public void onLoad() {
@@ -36,6 +37,7 @@ public class Main extends JavaPlugin {
         super.reloadConfig();
         FileConfiguration config = this.getConfig();
         high_frequency_writing = config.getBoolean("high-frequency-writing");
+        pixelmon_save_call = config.getBoolean("pixelmon-save-call");
 
         try {
             pixelClazz = Class.forName("com.pixelmonmod.pixelmon.Pixelmon");

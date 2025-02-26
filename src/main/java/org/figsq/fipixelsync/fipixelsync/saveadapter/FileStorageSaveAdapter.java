@@ -1,4 +1,4 @@
-package org.figsq.fipixelsync.fipixelsync;
+package org.figsq.fipixelsync.fipixelsync.saveadapter;
 
 import com.pixelmonmod.pixelmon.Pixelmon;
 import com.pixelmonmod.pixelmon.api.storage.IStorageSaveAdapter;
@@ -8,6 +8,7 @@ import net.minecraft.nbt.CompressedStreamTools;
 import net.minecraft.nbt.NBTTagCompound;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.figsq.fipixelsync.fipixelsync.Main;
 
 import javax.annotation.Nonnull;
 import java.io.DataInputStream;
@@ -16,7 +17,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.UUID;
-import java.util.logging.Level;
 
 @Getter
 public class FileStorageSaveAdapter implements IStorageSaveAdapter {
@@ -77,7 +77,7 @@ public class FileStorageSaveAdapter implements IStorageSaveAdapter {
         Player player = Bukkit.getPlayer(uuid);
         Main.instance.getLogger().info("load: "+uuid);
         if (player == null) {
-            Main.instance.getLogger().warning("加了本插件后修改离线玩家数据大概率无法同步!!!!");
+            Main.instance.getLogger().warning("请勿写入数据!数据可读~");
         }
         try {
             T storage = clazz.getConstructor(UUID.class).newInstance(uuid);

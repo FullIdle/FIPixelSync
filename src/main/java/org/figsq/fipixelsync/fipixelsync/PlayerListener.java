@@ -3,16 +3,13 @@ package org.figsq.fipixelsync.fipixelsync;
 import catserver.api.bukkit.event.ForgeEvent;
 import com.pixelmonmod.pixelmon.Pixelmon;
 import com.pixelmonmod.pixelmon.api.events.EconomyEvent;
-import com.pixelmonmod.pixelmon.api.events.FishingEvent;
 import com.pixelmonmod.pixelmon.api.events.LevelUpEvent;
 import com.pixelmonmod.pixelmon.api.events.pokemon.*;
 import com.pixelmonmod.pixelmon.api.events.quests.AbandonQuestEvent;
 import com.pixelmonmod.pixelmon.api.events.quests.FinishQuestEvent;
 import com.pixelmonmod.pixelmon.api.events.quests.QuestActionEvent;
 import com.pixelmonmod.pixelmon.api.events.storage.ChangeStorageEvent;
-import com.pixelmonmod.pixelmon.api.pokemon.Pokemon;
 import com.pixelmonmod.pixelmon.api.storage.*;
-import com.pixelmonmod.pixelmon.comm.packetHandlers.clientStorage.newStorage.ClientSet;
 import com.pixelmonmod.pixelmon.storage.PlayerPartyStorage;
 import com.pixelmonmod.pixelmon.storage.ReforgedStorageManager;
 import com.pixelmonmod.pixelmon.util.helpers.ReflectionHelper;
@@ -20,7 +17,9 @@ import lombok.SneakyThrows;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.scheduler.BukkitScheduler;
@@ -35,7 +34,9 @@ public final class PlayerListener implements Listener {
     private PlayerListener() {
     }
 
-    @EventHandler
+    @EventHandler(
+            priority = EventPriority.HIGHEST
+    )
     public void quit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
         UUID uuid = player.getUniqueId();
@@ -45,51 +46,24 @@ public final class PlayerListener implements Listener {
         IStorageSaveAdapter adapter = manager.getSaveAdapter();
         if (parties.containsKey(uuid)) adapter.save(parties.get(uuid));
         if (pcs.containsKey(uuid)) adapter.save(pcs.get(uuid));
-        Bukkit.getScheduler().runTask(Main.instance, () -> {
-            pcs.remove(uuid);
-            parties.remove(uuid);
-            manager.extraStorages.removeIf(storage -> storage.uuid.equals(uuid));
-        });
     }
 
-    @EventHandler
+    @EventHandler(
+            priority = EventPriority.LOWEST
+    )
+    public void preLogin(AsyncPlayerPreLoginEvent event){
+        UUID uuid = event.getUniqueId();
+        getPcs().remove(uuid);
+        getParties().remove(uuid);
+        ((ReforgedStorageManager) Pixelmon.storageManager).extraStorages.removeIf(storage -> storage.uuid.equals(uuid));
+    }
+
+    @SneakyThrows
+    @EventHandler(
+            priority = EventPriority.LOWEST
+    )
     public void join(PlayerJoinEvent event) {
-        Player player = event.getPlayer();
-        UUID uuid = player.getUniqueId();
-        ReforgedStorageManager manager = (ReforgedStorageManager) Pixelmon.storageManager;
-        Map<UUID, PlayerPartyStorage> parties = getParties();
-        Map<UUID, PCStorage> pcs = getPcs();
-        BukkitScheduler scheduler = Bukkit.getScheduler();
-        PlayerPartyStorage old = manager.getParty(uuid);
-        //刷新
-        scheduler.runTask(Main.instance, () -> {
-            //删除缓存
-            parties.remove(uuid);
-            //重获取
-            PlayerPartyStorage newParty = manager.getParty(uuid);
-            Pokemon oldPoke;
-            Pokemon newPoke;
-            for (int i = 0; i < 6; i++) {
-                oldPoke = old.get(i);
-                newPoke = newParty.get(i);
-                //如果原位置有精灵，新位置精灵与原位置精灵一样，直接跳过
-                if (oldPoke != null && oldPoke.equals(newPoke)) continue;
-                //刷新位置
-                Pixelmon.network.sendTo(new ClientSet(newParty, new StoragePosition(-1, i), newParty.get(i)), newParty.getPlayer());
-            }
-            //如果加载了pc
-            if (pcs.containsKey(uuid)) {
-                //删除pc缓存
-                pcs.remove(uuid);
-                //重获取
-                PCStorage pc = manager.getPCForPlayer(newParty.getPlayer());
-                //获取最后一次打开的页面
-                PCBox box = pc.getBox(pc.getLastBox());
-                //刷新(只对正在查看的玩家有用)
-                for (int i = 0; i < 30; i++)
-                    Pixelmon.network.sendTo(new ClientSet(newParty, new StoragePosition(box.boxNumber, i), box.get(i)), newParty.getPlayer());
-            }
-        });
+        Thread.sleep(100L);
     }
 
 

@@ -1,17 +1,15 @@
-##本地存储 文件夹路径
-local-storage-folder-path: "./plugins/FIPixelSync/data/"
-## mysql
+#有关mysql配置
 mysql:
-  ## 启用mysql的情况下 本地存储会失效
-  enable: false
   host: localhost
   port: 3306
   database: fipixelsync
   username: root
   password: 123456
-#true的情况下会使插件在玩家数据变动的情况下进行数据的写入 默认false使用数据库的时候建议开启
-high-frequency-writing: false
-
-#是否在数据保存的时候将Pixelmon原版保存一起调用
-#只会在玩家退出的时候调用
-pixelmon-save-call: false
+#有关redis配置
+redis:
+  #mysql启用的情况下该配置才有效
+  host: localhost
+  port: 6379
+#如果需要用户名和密码可以手动配置
+# username: root
+# password: 123456

@@ -1,11 +1,17 @@
 package org.figsq.fipixelsync.fipixelsync.pixel;
 
+import com.pixelmonmod.pixelmon.Pixelmon;
+import com.pixelmonmod.pixelmon.api.pokemon.Pokemon;
 import com.pixelmonmod.pixelmon.api.storage.PCStorage;
 import com.pixelmonmod.pixelmon.api.storage.PokemonStorage;
+import com.pixelmonmod.pixelmon.api.storage.StoragePosition;
+import com.pixelmonmod.pixelmon.comm.EnumUpdateType;
+import com.pixelmonmod.pixelmon.comm.packetHandlers.clientStorage.newStorage.ClientSet;
 import com.pixelmonmod.pixelmon.storage.PlayerPartyStorage;
 import com.pixelmonmod.pixelmon.storage.ReforgedStorageManager;
 import lombok.val;
 import net.minecraft.nbt.JsonToNBT;
+import net.minecraft.nbt.NBTException;
 import net.minecraft.nbt.NBTTagCompound;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -53,39 +59,53 @@ public class FIPixelSyncStorageManager extends ReforgedStorageManager {
      * 这将会异步执行
      */
     public void lazyRead(PokemonStorage storage, UUID uuid, String storageIdentity) {
-        System.out.println("§3lazy");
         //套个取消旧任务(一般没有)
-        PixelUtil.unsafeCancelTask(TASKS.put(uuid, Bukkit.getScheduler().runTaskAsynchronously(Main.INSTANCE, () -> {
+        val bukkitScheduler = Bukkit.getScheduler();
+        PixelUtil.unsafeCancelTask(TASKS.put(uuid, bukkitScheduler.runTaskAsynchronously(Main.INSTANCE, () -> {
             try (val resource = ConfigManager.redis.getResource()) {
                 PixelUtil.playerSetFrozen(uuid, true);
-                System.out.println("§3frozen true");
                 val identity = PixelUtil.getPlayerLockIdentity(uuid);
                 val setParams = SetParams.setParams();
                 //原子级操作，不怕直接取消
-                if (!resource.set(identity, "1", setParams.ex(10).nx()).equals("OK")) {
+                if (!"OK".equals(resource.set(identity, "1", setParams.ex(10).nx()))) {
                     //已经存在锁了
                     throw new RuntimeException("§c§l玩家正在被其他端操作，请稍后再试");
                 }
-                System.out.println("§3setex 10s 1 and wait");
                 while (resource.get(identity) != null) {} //等待其他端或者 10 秒后 解锁
-                System.out.println("§3wait end check player");
                 if (Bukkit.getPlayer(uuid) == null) return; //突发问题直接跳过(由其他处理(quit))
-                System.out.println("§3player not null get nbt");
                 val nbtData = resource.getDel(storageIdentity); //10秒内redis中会有缓存 读取后删除 如果没有视作进服而不是跳转
-                if (nbtData != null) {
-                    System.out.println("§3read nbt");
-                    storage.readFromNBT(JsonToNBT.func_180713_a(nbtData));
-                    storage.shouldSendUpdates = true;
-                } else {
-                    System.out.println("§3no nbt");
-                }
-                System.out.println("§3frozen false");
-                PixelUtil.playerSetFrozen(uuid, false);//在最后解锁，防止读到一半玩家傻逼逼的强制自己给自己退了
-                PixelUtil.unsafeCancelTask(TASKS.remove(uuid)); //删除还要关闭的原因是怕有啥我算不到的任务被莫名其妙加进去了
+                bukkitScheduler.runTask(Main.INSTANCE, ()->{
+                    //再次检查玩家
+                    val player = Bukkit.getPlayer(uuid);
+                    if (player != null && nbtData != null)
+                        try {
+                            storage.readFromNBT(JsonToNBT.func_180713_a(nbtData));
+                            refreshData(uuid); //刷新玩家视角的数据
+                        } catch (NBTException e) {
+                            player.kickPlayer("[FIPSync] §c§l数据错误请重新连接");//由于还么有解冻，所以这个时候退出实际不会保存脏数据
+                            //保证玩家数据安全
+                        }
+                    PixelUtil.playerSetFrozen(uuid, false);//在最后解锁，防止读到一半玩家傻逼逼的强制自己给自己退了
+                    PixelUtil.unsafeCancelTask(TASKS.remove(uuid)); //删除还要关闭的原因是怕有啥我算不到的任务被莫名其妙加进去了
+                });
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         })));
+    }
+
+    /**
+     * 刷新玩家视角的数据
+     * 玩家不在线会报错
+     */
+    private void refreshData(UUID uuid) {
+        val party = this.getParty(uuid);
+        //party的位置刷新
+        val all = party.getAll();
+        for (int i = 0; i < all.length; i++)
+            Pixelmon.network.sendTo(new ClientSet(party, new StoragePosition(-1, i), all[i], EnumUpdateType.CLIENT), party.getPlayer());
+        this.pcs.remove(uuid);//pc最好重新加载
+        this.getPCForPlayer(uuid);
     }
 
     @Override
@@ -117,6 +137,16 @@ public class FIPixelSyncStorageManager extends ReforgedStorageManager {
     }
 
     /**
+     * 玩家加入的时候的内容
+     */
+    public void onJoin(Player player) {
+        val uniqueId = player.getUniqueId();
+        this.parties.remove(uniqueId);
+        this.pcs.remove(uniqueId);
+        this.playersWithSyncedPCs.remove(uniqueId);
+    }
+
+    /**
      * 玩家退出
      *
      * @see org.figsq.fipixelsync.fipixelsync.BukkitListener
@@ -136,6 +166,7 @@ public class FIPixelSyncStorageManager extends ReforgedStorageManager {
             //不管如何都是要删除这边的缓存的z
             val party = this.parties.remove(uniqueId);
             val pc = this.pcs.remove(uniqueId);
+            this.playersWithSyncedPCs.remove(uniqueId);
             //保存到mysql内 如果跳转失败，失败的那个服务器在上面判断lockList的时候就结束了，这样可以防止脏数据
             //如果没有 party 数据那直接不用同步了，直接返回
             System.out.println("§3check paty null");

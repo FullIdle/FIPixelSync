@@ -23,6 +23,12 @@ public class BukkitListener implements Listener {
     public void onPlayerQuit(final PlayerQuitEvent event) {
         ((FIPixelSyncStorageManager) Pixelmon.storageManager).onQuit(event.getPlayer());
     }
+    @EventHandler(
+            priority = EventPriority.LOWEST
+    )
+    public void onPlayerJoin(final PlayerQuitEvent event) {
+        ((FIPixelSyncStorageManager) Pixelmon.storageManager).onJoin(event.getPlayer());
+    }
 
     /*freeze 玩家大部分行为失效*/
     @EventHandler(

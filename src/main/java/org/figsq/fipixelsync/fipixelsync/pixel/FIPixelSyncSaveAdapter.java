@@ -4,6 +4,7 @@ import com.pixelmonmod.pixelmon.Pixelmon;
 import com.pixelmonmod.pixelmon.api.storage.IStorageSaveAdapter;
 import com.pixelmonmod.pixelmon.api.storage.PokemonStorage;
 import lombok.Getter;
+import lombok.val;
 import net.minecraft.nbt.JsonToNBT;
 import net.minecraft.nbt.NBTTagCompound;
 import org.bukkit.Bukkit;

@@ -164,6 +164,7 @@ public class FIPixelSyncStorageManager extends ReforgedStorageManager {
         scheduler.runTaskLater(Main.INSTANCE, ()->{
             if (Bukkit.getPlayer(uniqueId) != null) return;//玩家™的在5Tick时间内又™的回来了
             //不管如何都是要删除这边的缓存的z
+            System.out.println("§3玩家" + Bukkit.getPlayer(uniqueId));
             val party = this.parties.remove(uniqueId);
             val pc = this.pcs.remove(uniqueId);
             this.playersWithSyncedPCs.remove(uniqueId);

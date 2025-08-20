@@ -5,6 +5,7 @@ mysql:
   database: fipixelsync
   username: root
   password: 123456
+  argument: useSSL=false&useUnicode=true&characterEncoding=utf8
 #有关redis配置
 redis:
   #mysql启用的情况下该配置才有效

@@ -16,13 +16,15 @@ public class Mysql {
     private final String password;
     private Connection connection;
     private boolean initialized;
+    private final String arguments;
 
-    public Mysql(String host, String port, String database, String username, String password) {
+    public Mysql(String host, String port, String database, String username, String password,String arguments) {
         this.host = host;
         this.port = port;
         this.database = database;
         this.username = username;
         this.password = password;
+        this.arguments = arguments;
     }
 
     public void init(){
@@ -75,11 +77,11 @@ public class Mysql {
     }
 
     private String getOriginalUrl() {
-        return "jdbc:mysql://" + host + ":" + port + "?useSSL=false";
+        return "jdbc:mysql://" + host + ":" + port + "?" + this.arguments;
     }
 
     private String getUrl() {
-        return "jdbc:mysql://" + host + ":" + port + "/" + database + "?useSSL=false";
+        return "jdbc:mysql://" + host + ":" + port + "/" + database + "?" + this.arguments;
     }
 
     private void createDatabase() {
@@ -115,7 +117,8 @@ public class Mysql {
                 section.getString("port"),
                 section.getString("database"),
                 section.getString("username"),
-                section.getString("password")
+                section.getString("password"),
+                section.getString("arguments")
         );
     }
 }

@@ -3,7 +3,9 @@ package org.figsq.fipixelsync.fipixelsync.comm.messages;
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 import com.pixelmonmod.pixelmon.Pixelmon;
+import com.pixelmonmod.pixelmon.api.pokemon.Pokemon;
 import com.pixelmonmod.pixelmon.api.storage.PokemonStorage;
+import com.pixelmonmod.pixelmon.storage.PlayerPartyStorage;
 import lombok.SneakyThrows;
 import lombok.val;
 import net.minecraft.nbt.JsonToNBT;
@@ -27,6 +29,10 @@ public class PlayerStorageUpdateMessage implements IMessage {
         this.owner = owner;
         this.isPc = isPc;
         this.nbt = nbt;
+    }
+
+    public PlayerStorageUpdateMessage(UUID owner, boolean isPc, PlayerPartyStorage storage) {
+        this(owner, isPc, storage.writeToNBT(new NBTTagCompound()));
     }
 
     @Override

@@ -1,6 +1,7 @@
 package org.figsq.fipixelsync.fipixelsync.pixel;
 
 import com.pixelmonmod.pixelmon.Pixelmon;
+import com.pixelmonmod.pixelmon.TickHandler;
 import com.pixelmonmod.pixelmon.api.pokemon.Pokemon;
 import com.pixelmonmod.pixelmon.api.storage.IStorageSaveAdapter;
 import com.pixelmonmod.pixelmon.api.storage.PCStorage;
@@ -8,8 +9,10 @@ import com.pixelmonmod.pixelmon.api.storage.PokemonStorage;
 import com.pixelmonmod.pixelmon.api.storage.StoragePosition;
 import com.pixelmonmod.pixelmon.comm.EnumUpdateType;
 import com.pixelmonmod.pixelmon.comm.packetHandlers.clientStorage.newStorage.ClientSet;
+import com.pixelmonmod.pixelmon.config.PixelmonConfig;
 import com.pixelmonmod.pixelmon.enums.EnumSpecies;
 import com.pixelmonmod.pixelmon.storage.PlayerPartyStorage;
+import com.pixelmonmod.pixelmon.util.helpers.ReflectionHelper;
 import lombok.Getter;
 import lombok.val;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -39,6 +42,7 @@ import static org.figsq.fipixelsync.fipixelsync.pixel.PixelUtil.unfreezePlayer;
  */
 @Getter
 public class FIPixelSyncSaveAdapter implements IStorageSaveAdapter {
+    public static final Pokemon temp = Pixelmon.pokemonFactory.create(EnumSpecies.Pichu);
     public static final FIPixelSyncSaveAdapter INSTANCE = new FIPixelSyncSaveAdapter();
     /**
      * 存进去的future不一定是异步哦~
@@ -94,6 +98,7 @@ public class FIPixelSyncSaveAdapter implements IStorageSaveAdapter {
     }
 
     public static <T extends PokemonStorage> T tempStorage(T storage){
+        if (storage instanceof PlayerPartyStorage) ((PlayerPartyStorage) storage).starterPicked = true;
         return storage;
     }
 
@@ -127,7 +132,15 @@ public class FIPixelSyncSaveAdapter implements IStorageSaveAdapter {
                         } else {
                             System.out.println("§cno unfreeze player");
                         }
-                        if (json == null) return;
+                        if (json == null) {
+                            //二次刷新
+                            if (storage instanceof PlayerPartyStorage) {
+                                val party = (PlayerPartyStorage) storage;
+                                //把之前load内设置的设置回来
+                                party.starterPicked = false;
+                            }
+                            return;
+                        }
                         try {
                             System.out.println("§c json to nbt");
                             NBTTagCompound nbt = JsonToNBT.func_180713_a(json);

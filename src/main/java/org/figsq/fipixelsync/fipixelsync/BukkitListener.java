@@ -1,10 +1,13 @@
 package org.figsq.fipixelsync.fipixelsync;
 
 import com.pixelmonmod.pixelmon.Pixelmon;
+import com.pixelmonmod.pixelmon.api.events.CaptureEvent;
 import com.pixelmonmod.pixelmon.api.events.ThrowPokeballEvent;
+import com.pixelmonmod.pixelmon.api.events.storage.ChangeStorageEvent;
 import lombok.val;
 import me.fullidle.ficore.ficore.common.api.event.ForgeEvent;
 import net.minecraft.nbt.NBTTagCompound;
+import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -12,6 +15,7 @@ import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.figsq.fipixelsync.fipixelsync.comm.CommManager;
+import org.figsq.fipixelsync.fipixelsync.comm.messages.PlayerCaptureMessage;
 import org.figsq.fipixelsync.fipixelsync.comm.messages.PlayerStorageUpdateMessage;
 import org.figsq.fipixelsync.fipixelsync.pixel.FIPixelSyncStorageManager;
 import org.figsq.fipixelsync.fipixelsync.pixel.PixelUtil;
@@ -40,6 +44,19 @@ public class BukkitListener implements Listener {
                 pc.writeToNBT(new NBTTagCompound())
         ));
         manager.playersWithSyncedPCs.remove(uniqueId);
+    }
+    @EventHandler
+    public void onForge(ForgeEvent event) {
+        if (event.getForgeEvent() instanceof CaptureEvent.SuccessfulCapture) {
+            val e = (CaptureEvent.SuccessfulCapture) event.getForgeEvent();
+            val ep = e.getPokemon();
+            val pokemonData = ep.getPokemonData();
+            CommManager.publish(new PlayerCaptureMessage(
+                    e.player.func_110124_au(),
+                    pokemonData
+            ));
+            return;
+        }
     }
 
 

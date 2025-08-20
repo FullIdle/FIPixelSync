@@ -5,6 +5,7 @@ import com.google.common.io.ByteStreams;
 import lombok.val;
 import org.bukkit.Bukkit;
 import org.figsq.fipixelsync.fipixelsync.Main;
+import org.figsq.fipixelsync.fipixelsync.comm.messages.PlayerCaptureMessage;
 import org.figsq.fipixelsync.fipixelsync.comm.messages.PlayerStorageUpdateMessage;
 import org.figsq.fipixelsync.fipixelsync.config.ConfigManager;
 
@@ -109,5 +110,6 @@ public class CommManager {
     static {
         //注册我自己默认需要用的包
         registerMessageHandler(PlayerStorageUpdateMessage.class, PlayerStorageUpdateMessage.Handler.INSTANCE);
+        registerMessageHandler(PlayerCaptureMessage.class, PlayerCaptureMessage.Handler.INSTANCE);
     }
 }

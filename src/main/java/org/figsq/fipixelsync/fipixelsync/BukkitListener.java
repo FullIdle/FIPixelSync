@@ -5,10 +5,8 @@ import com.pixelmonmod.pixelmon.api.enums.ReceiveType;
 import com.pixelmonmod.pixelmon.api.events.CaptureEvent;
 import com.pixelmonmod.pixelmon.api.events.PixelmonReceivedEvent;
 import com.pixelmonmod.pixelmon.api.events.ThrowPokeballEvent;
-import com.pixelmonmod.pixelmon.api.events.storage.ChangeStorageEvent;
 import lombok.val;
 import me.fullidle.ficore.ficore.common.api.event.ForgeEvent;
-import net.minecraft.client.particle.ParticleFirework;
 import net.minecraft.nbt.NBTTagCompound;
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
@@ -33,19 +31,10 @@ public class BukkitListener implements Listener {
     public void onPlayerQuit(final PlayerQuitEvent event) {
         val uniqueId = event.getPlayer().getUniqueId();
         val manager = ((FIPixelSyncStorageManager) Pixelmon.storageManager);
-        System.out.println("发送");
-        CommManager.publish(new PlayerStorageUpdateMessage(
-                uniqueId,
-                false,
-                manager.getParty(uniqueId).writeToNBT(new NBTTagCompound())
-        ));
+        val adapter = manager.getSaveAdapter();
+        adapter.save(manager.getParty(uniqueId));
         val pc = manager.getPcs().get(uniqueId);
-        if (pc != null)
-            CommManager.publish(new PlayerStorageUpdateMessage(
-                uniqueId,
-                true,
-                pc.writeToNBT(new NBTTagCompound())
-        ));
+        if (pc != null) adapter.save(pc);
         manager.playersWithSyncedPCs.remove(uniqueId);
     }
     @EventHandler

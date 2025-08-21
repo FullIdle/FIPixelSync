@@ -56,12 +56,17 @@ public class FIPixelSyncSaveAdapter implements IStorageSaveAdapter {
         val nbt = new NBTTagCompound();
         String json = storage.writeToNBT(nbt).toString();
 
-        //发布
-        CommManager.publish(new PlayerStorageUpdateMessage(
-                storage.uuid,
-                !(storage instanceof PlayerPartyStorage),
-                nbt
-        ));
+        //没有玩家不允许使用该包去进行发布
+        //如果想要更新某数据，自定义一个数据包类似 CaptureMessage
+        if (Bukkit.getPlayer(storage.uuid) != null) {
+            //发布
+            System.out.println("§3发布");
+            CommManager.publish(new PlayerStorageUpdateMessage(
+                    storage.uuid,
+                    !(storage instanceof PlayerPartyStorage),
+                    nbt
+            ));
+        }
 
         val bukkitScheduler = Bukkit.getScheduler();
         String sql = "INSERT INTO player_data (dataname, nbt) VALUES (?, ?) ON DUPLICATE KEY UPDATE nbt = ?";

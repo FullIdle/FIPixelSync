@@ -1,20 +1,16 @@
 package org.figsq.fipixelsync.fipixelsync.pixel;
 
 import com.pixelmonmod.pixelmon.Pixelmon;
+import com.pixelmonmod.pixelmon.api.economy.IPixelmonBankAccountManager;
 import com.pixelmonmod.pixelmon.api.storage.IStorageManager;
 import com.pixelmonmod.pixelmon.storage.ReforgedStorageManager;
 import lombok.val;
 import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 import org.figsq.fipixelsync.fipixelsync.Main;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPubSub;
 
 import java.util.HashSet;
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class PixelUtil {
     public static ReforgedStorageManager oldManager;
@@ -32,7 +28,8 @@ public class PixelUtil {
         return ((ReforgedStorageManager) manager);
     }
 
-    public static void replace(IStorageManager manager){
+    public static <T extends IStorageManager & IPixelmonBankAccountManager> void replace(T manager){
+        Pixelmon.moneyManager = manager;
         Pixelmon.storageManager = manager;
     }
 

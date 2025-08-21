@@ -1,11 +1,14 @@
 package org.figsq.fipixelsync.fipixelsync;
 
 import com.pixelmonmod.pixelmon.Pixelmon;
+import com.pixelmonmod.pixelmon.api.enums.ReceiveType;
 import com.pixelmonmod.pixelmon.api.events.CaptureEvent;
+import com.pixelmonmod.pixelmon.api.events.PixelmonReceivedEvent;
 import com.pixelmonmod.pixelmon.api.events.ThrowPokeballEvent;
 import com.pixelmonmod.pixelmon.api.events.storage.ChangeStorageEvent;
 import lombok.val;
 import me.fullidle.ficore.ficore.common.api.event.ForgeEvent;
+import net.minecraft.client.particle.ParticleFirework;
 import net.minecraft.nbt.NBTTagCompound;
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
@@ -56,6 +59,17 @@ public class BukkitListener implements Listener {
                     pokemonData
             ));
             return;
+        }
+
+        if (event.getForgeEvent() instanceof PixelmonReceivedEvent) {
+            val e = (PixelmonReceivedEvent) event.getForgeEvent();
+            if (!e.receiveType.equals(ReceiveType.Starter)) return;
+            Bukkit.getScheduler().runTask(Main.INSTANCE,()->{
+                val storage = e.pokemon.getStorage();
+                if (storage == null) return;
+                if (!storage.uuid.equals(e.player.func_110124_au())) return;
+                Pixelmon.storageManager.getSaveAdapter().save(storage);
+            });
         }
     }
 

@@ -98,7 +98,6 @@ public class CommManager {
      */
     public static void handleMessage(final UUID sender, final IMessage message) {
         val messageHandler = getMessageHandler(message.getClass());
-        System.out.println("handler" + messageHandler);
         if (messageHandler == null) return;
         ((IHandler<IMessage>) messageHandler).handle(sender,message);
     }

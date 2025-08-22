@@ -63,12 +63,10 @@ public class PlayerStorageUpdateMessage implements IMessage {
 
         @Override
         public void handle(UUID sender,PlayerStorageUpdateMessage message) {
-            System.out.println("接收到更新包");
             val storageManager = (FIPixelSyncStorageManager) Pixelmon.storageManager;
             val owner = message.owner;
             storageManager.playersWithSyncedPCs.remove(owner);
             val party = message.isPc ? storageManager.getPCForPlayer(owner) : storageManager.getParty(owner);
-            System.out.println("§3type:" + party.getClass().getName());
             //在这个线程等他完成
             val future = FIPixelSyncSaveAdapter.lazyReadMap.get(party);
             if (future != null) future.join();//完成这个后使用bukkit的调度器回到下一个tick去同步这里的数据是已经可以直接用的了

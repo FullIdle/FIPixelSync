@@ -7,7 +7,6 @@ import com.pixelmonmod.pixelmon.api.events.PixelmonReceivedEvent;
 import com.pixelmonmod.pixelmon.api.events.ThrowPokeballEvent;
 import lombok.val;
 import me.fullidle.ficore.ficore.common.api.event.ForgeEvent;
-import net.minecraft.nbt.NBTTagCompound;
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -17,7 +16,6 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.figsq.fipixelsync.fipixelsync.comm.CommManager;
 import org.figsq.fipixelsync.fipixelsync.comm.messages.PlayerCaptureMessage;
-import org.figsq.fipixelsync.fipixelsync.comm.messages.PlayerStorageUpdateMessage;
 import org.figsq.fipixelsync.fipixelsync.pixel.FIPixelSyncStorageManager;
 import org.figsq.fipixelsync.fipixelsync.pixel.PixelUtil;
 

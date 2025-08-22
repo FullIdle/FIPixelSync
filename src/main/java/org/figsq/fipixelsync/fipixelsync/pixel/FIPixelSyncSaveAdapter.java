@@ -58,20 +58,17 @@ public class FIPixelSyncSaveAdapter implements IStorageSaveAdapter {
 
         //没有玩家不允许使用该包去进行发布
         //如果想要更新某数据，自定义一个数据包类似 CaptureMessage
-        if (Bukkit.getPlayer(storage.uuid) != null) {
-            //发布
-            System.out.println("§3发布");
-            CommManager.publish(new PlayerStorageUpdateMessage(
-                    storage.uuid,
-                    !(storage instanceof PlayerPartyStorage),
-                    nbt
-            ));
-        }
+        //发布
+        if (Bukkit.getPlayer(storage.uuid) != null) CommManager.publish(new PlayerStorageUpdateMessage(
+                storage.uuid,
+                !(storage instanceof PlayerPartyStorage),
+                nbt
+        ));
 
         val bukkitScheduler = Bukkit.getScheduler();
         String sql = "INSERT INTO player_data (dataname, nbt) VALUES (?, ?) ON DUPLICATE KEY UPDATE nbt = ?";
-        Connection connect = ConfigManager.mysql.getConnection();
         bukkitScheduler.runTaskAsynchronously(Main.INSTANCE, ()->{
+            Connection connect = ConfigManager.mysql.getConnection();
             try (
                     PreparedStatement prepared = connect.prepareStatement(sql)
             ) {
@@ -90,11 +87,7 @@ public class FIPixelSyncSaveAdapter implements IStorageSaveAdapter {
     public <T extends PokemonStorage> T load(UUID uuid, Class<T> clazz) {
         Main.INSTANCE.getLogger().info("load: "+uuid);
         try {
-            T storage = tempStorage(clazz.getConstructor(UUID.class).newInstance(uuid));
-            System.out.println("§cload temp");
-            lazyReadMysqlData(storage);
-            System.out.println("§creturn tempstorage");
-            return storage;
+            return lazyReadMysqlData(tempStorage(clazz.getConstructor(UUID.class).newInstance(uuid)));
         } catch (Exception e) {
             Pixelmon.LOGGER.error("Failed to load storage! " + clazz.getSimpleName() + ", UUID: " + uuid.toString());
             e.printStackTrace();
@@ -107,36 +100,24 @@ public class FIPixelSyncSaveAdapter implements IStorageSaveAdapter {
         return storage;
     }
 
-    public static void lazyReadMysqlData(PokemonStorage storage) {
+    public static <T extends PokemonStorage> T lazyReadMysqlData(T storage) {
         val bukkitScheduler = Bukkit.getScheduler();
-        Connection connect = ConfigManager.mysql.getConnection();
         String sql = "SELECT * FROM player_data WHERE dataname = ?";
         val plugin = Main.INSTANCE;
         val uuid = storage.uuid;
-        System.out.println("§cstart lazy read");
         freezePlayer(uuid);//冻结玩家
-        System.out.println("§c freeze player and lazyReadMap put");
         lazyReadMap.put(storage,CompletableFuture.runAsync(() -> {
+            Connection connect = ConfigManager.mysql.getConnection();
             try {
-                System.out.println("§c get dataname");
                 String dataname = storage.getFile().getName();
-                System.out.println("§c dataname " + dataname);
                 try (PreparedStatement prepared = connect.prepareStatement(sql)) {
                     prepared.setString(1, dataname);
                     ResultSet rs = prepared.executeQuery();
                     val json = rs.next() ? rs.getString("nbt") : null;
-                    System.out.println("remove lazyReadMap");
                     lazyReadMap.remove(storage);//可以被删除的时候
 
-                    System.out.println("§c run sync task");
                     bukkitScheduler.runTask(plugin, () -> {
-                        System.out.println("§csync task head");
-                        if (!lazyReadMapHasUUID(uuid)) {
-                            System.out.println("§cunfreeze player");
-                            unfreezePlayer(uuid);//解冻
-                        } else {
-                            System.out.println("§cno unfreeze player");
-                        }
+                        if (!lazyReadMapHasUUID(uuid)) unfreezePlayer(uuid);//解冻
                         if (json == null) {
                             //二次刷新
                             if (storage instanceof PlayerPartyStorage) {
@@ -147,11 +128,8 @@ public class FIPixelSyncSaveAdapter implements IStorageSaveAdapter {
                             return;
                         }
                         try {
-                            System.out.println("§c json to nbt");
                             NBTTagCompound nbt = JsonToNBT.func_180713_a(json);
-                            System.out.println("§c read from nbt");
                             storage.readFromNBT(nbt);
-                            System.out.println("§c client refresh storage");
                             clientRefreshStorage(storage);
                         } catch (Exception e) {
                             e.printStackTrace();
@@ -164,6 +142,7 @@ public class FIPixelSyncSaveAdapter implements IStorageSaveAdapter {
                 e.printStackTrace();
             }
         }));
+        return storage;
     }
 
     public static void clientRefreshStorage(PokemonStorage storage) {

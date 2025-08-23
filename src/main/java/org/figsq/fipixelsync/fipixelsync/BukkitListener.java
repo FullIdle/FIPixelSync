@@ -13,9 +13,11 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.figsq.fipixelsync.fipixelsync.comm.CommManager;
 import org.figsq.fipixelsync.fipixelsync.comm.messages.PlayerCaptureMessage;
+import org.figsq.fipixelsync.fipixelsync.pixel.FIPixelSyncSaveAdapter;
 import org.figsq.fipixelsync.fipixelsync.pixel.FIPixelSyncStorageManager;
 import org.figsq.fipixelsync.fipixelsync.pixel.PixelUtil;
 
@@ -30,11 +32,22 @@ public class BukkitListener implements Listener {
         val uniqueId = event.getPlayer().getUniqueId();
         val manager = ((FIPixelSyncStorageManager) Pixelmon.storageManager);
         val adapter = manager.getSaveAdapter();
-        adapter.save(manager.getParty(uniqueId));
-        val pc = manager.getPcs().get(uniqueId);
-        if (pc != null) adapter.save(pc);
-        manager.playersWithSyncedPCs.remove(uniqueId);
+        val party = manager.getParty(uniqueId);
+        val pc = manager.getPCForPlayer(uniqueId);
+        val partyFuture = FIPixelSyncSaveAdapter.lazyReadMap.get(party);
+        if (partyFuture != null) partyFuture.thenRun(() -> adapter.save(party));
+        else adapter.save(party);
+        val pcFuture = FIPixelSyncSaveAdapter.lazyReadMap.get(pc);
+        if (pcFuture != null) pcFuture.thenRun(() -> adapter.save(pc));
+        else adapter.save(pc);
     }
+
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        /*进服后直接加载pc方便之后延迟写入TODO 或许之后的修改*/
+        Pixelmon.storageManager.getPCForPlayer(event.getPlayer().getUniqueId());
+    }
+
     @EventHandler
     public void onForge(ForgeEvent event) {
         if (event.getForgeEvent() instanceof CaptureEvent.SuccessfulCapture) {

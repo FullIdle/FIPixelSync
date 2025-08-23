@@ -53,10 +53,11 @@ public class FIPixelSyncSaveAdapter implements IStorageSaveAdapter {
         //没有玩家不允许使用该包去进行发布
         //如果想要更新某数据，自定义一个数据包类似 CaptureMessage
         //发布
-        if (Bukkit.getPlayer(storage.uuid) != null) CommManager.publish(new PlayerStorageUpdateMessage(
+        CommManager.publish(new PlayerStorageUpdateMessage(
                 storage.uuid,
                 !(storage instanceof PlayerPartyStorage),
-                nbt
+                nbt,
+                Bukkit.getPlayer(storage.uuid) == null
         ));
 
         asyncSaveMap.put(storage,CompletableFuture.runAsync(()-> {

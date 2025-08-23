@@ -42,7 +42,6 @@ import static org.figsq.fipixelsync.fipixelsync.pixel.PixelUtil.unfreezePlayer;
  */
 @Getter
 public class FIPixelSyncSaveAdapter implements IStorageSaveAdapter {
-    public static final Pokemon temp = Pixelmon.pokemonFactory.create(EnumSpecies.Pichu);
     public static final FIPixelSyncSaveAdapter INSTANCE = new FIPixelSyncSaveAdapter();
     /**
      * 存进去的future不一定是异步哦~

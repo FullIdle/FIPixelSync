@@ -50,6 +50,7 @@ public class BukkitListener implements Listener {
 
     @EventHandler
     public void onForge(ForgeEvent event) {
+        //跨服抓精灵
         if (event.getForgeEvent() instanceof CaptureEvent.SuccessfulCapture) {
             val e = (CaptureEvent.SuccessfulCapture) event.getForgeEvent();
             val ep = e.getPokemon();
@@ -61,6 +62,7 @@ public class BukkitListener implements Listener {
             return;
         }
 
+        //初始选择，优化效果
         if (event.getForgeEvent() instanceof PixelmonReceivedEvent) {
             val e = (PixelmonReceivedEvent) event.getForgeEvent();
             if (!e.receiveType.equals(ReceiveType.Starter)) return;

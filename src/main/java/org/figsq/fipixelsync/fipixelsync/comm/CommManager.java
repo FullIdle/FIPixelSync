@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public class CommManager {
     public static final Map<Class<? extends IMessage>, IHandler<? extends IMessage>> registeredMessageHandler = new HashMap<>();
@@ -45,8 +46,7 @@ public class CommManager {
     }
 
     public static void publish(final IMessage message) {
-        val bukkitScheduler = Bukkit.getScheduler();
-        bukkitScheduler.runTaskAsynchronously(Main.INSTANCE, () -> {
+        CompletableFuture.runAsync(() -> {
             try (val resource = ConfigManager.redis.getResource()) {
                 resource.publish(CHANNEL_BYTES, encode(message));
             }

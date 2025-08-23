@@ -1,18 +1,13 @@
 package org.figsq.fipixelsync.fipixelsync.pixel;
 
 import com.pixelmonmod.pixelmon.Pixelmon;
-import com.pixelmonmod.pixelmon.TickHandler;
-import com.pixelmonmod.pixelmon.api.pokemon.Pokemon;
 import com.pixelmonmod.pixelmon.api.storage.IStorageSaveAdapter;
 import com.pixelmonmod.pixelmon.api.storage.PCStorage;
 import com.pixelmonmod.pixelmon.api.storage.PokemonStorage;
 import com.pixelmonmod.pixelmon.api.storage.StoragePosition;
 import com.pixelmonmod.pixelmon.comm.EnumUpdateType;
 import com.pixelmonmod.pixelmon.comm.packetHandlers.clientStorage.newStorage.ClientSet;
-import com.pixelmonmod.pixelmon.config.PixelmonConfig;
-import com.pixelmonmod.pixelmon.enums.EnumSpecies;
 import com.pixelmonmod.pixelmon.storage.PlayerPartyStorage;
-import com.pixelmonmod.pixelmon.util.helpers.ReflectionHelper;
 import lombok.Getter;
 import lombok.val;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -47,11 +42,11 @@ public class FIPixelSyncSaveAdapter implements IStorageSaveAdapter {
      * 存进去的future不一定是异步哦~
      */
     public static final Map<PokemonStorage, CompletableFuture<Void>> lazyReadMap = new HashMap<>();
+    public static final Map<PokemonStorage, CompletableFuture<Void>> asyncSaveMap = new HashMap<>();
 
     @Override
     public void save(PokemonStorage storage) {
         Main.INSTANCE.getLogger().info("save: " + Bukkit.getOfflinePlayer(storage.uuid).getName());
-        String dataname = storage.getFile().getName();
         val nbt = new NBTTagCompound();
         String json = storage.writeToNBT(nbt).toString();
 
@@ -64,21 +59,24 @@ public class FIPixelSyncSaveAdapter implements IStorageSaveAdapter {
                 nbt
         ));
 
-        val bukkitScheduler = Bukkit.getScheduler();
-        String sql = "INSERT INTO player_data (dataname, nbt) VALUES (?, ?) ON DUPLICATE KEY UPDATE nbt = ?";
-        bukkitScheduler.runTaskAsynchronously(Main.INSTANCE, ()->{
-            Connection connect = ConfigManager.mysql.getConnection();
-            try (
-                    PreparedStatement prepared = connect.prepareStatement(sql)
-            ) {
-                prepared.setString(1, dataname);
-                prepared.setString(2, json);
-                prepared.setString(3, json);
-                prepared.executeUpdate();
-            } catch (SQLException e) {
-                Pixelmon.LOGGER.error("Couldn't write player database for " + storage.uuid.toString(), e);
-            }
-        });
+        asyncSaveMap.put(storage,CompletableFuture.runAsync(()-> {
+            syncSave(storage, json);
+            asyncSaveMap.remove(storage);
+        }));
+    }
+
+    public void syncSave(PokemonStorage storage, String jsonData) {
+        Connection connect = ConfigManager.mysql.getConnection();
+        try (
+                PreparedStatement prepared = connect.prepareStatement("INSERT INTO player_data (dataname, nbt) VALUES (?, ?) ON DUPLICATE KEY UPDATE nbt = ?")
+        ) {
+            prepared.setString(1, storage.getFile().getName());
+            prepared.setString(2, jsonData);
+            prepared.setString(3, jsonData);
+            prepared.executeUpdate();
+        } catch (SQLException e) {
+            Pixelmon.LOGGER.error("Couldn't write player database for " + storage.uuid.toString(), e);
+        }
     }
 
     @Nonnull

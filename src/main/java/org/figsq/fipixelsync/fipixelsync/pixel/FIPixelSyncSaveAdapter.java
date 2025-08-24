@@ -1,6 +1,7 @@
 package org.figsq.fipixelsync.fipixelsync.pixel;
 
 import com.pixelmonmod.pixelmon.Pixelmon;
+import com.pixelmonmod.pixelmon.api.command.PixelmonCommand;
 import com.pixelmonmod.pixelmon.api.storage.IStorageSaveAdapter;
 import com.pixelmonmod.pixelmon.api.storage.PCStorage;
 import com.pixelmonmod.pixelmon.api.storage.PokemonStorage;
@@ -12,7 +13,6 @@ import com.pixelmonmod.pixelmon.comm.packetHandlers.clientStorage.newStorage.pc.
 import com.pixelmonmod.pixelmon.storage.PlayerPartyStorage;
 import lombok.Getter;
 import lombok.val;
-import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.nbt.JsonToNBT;
 import net.minecraft.nbt.NBTTagCompound;
 import org.bukkit.Bukkit;
@@ -62,7 +62,7 @@ public class FIPixelSyncSaveAdapter implements IStorageSaveAdapter {
                 Bukkit.getPlayer(storage.uuid) == null
         ));
 
-        asyncSaveMap.put(storage,CompletableFuture.runAsync(()-> {
+        asyncSaveMap.put(storage, CompletableFuture.runAsync(() -> {
             syncSave(storage, json);
             asyncSaveMap.remove(storage);
         }));
@@ -85,7 +85,7 @@ public class FIPixelSyncSaveAdapter implements IStorageSaveAdapter {
     @Nonnull
     @Override
     public <T extends PokemonStorage> T load(UUID uuid, Class<T> clazz) {
-        Main.INSTANCE.getLogger().info("load: "+uuid);
+        Main.INSTANCE.getLogger().info("load: " + uuid);
         try {
             return lazyReadMysqlData(tempStorage(clazz.getConstructor(UUID.class).newInstance(uuid)));
         } catch (Exception e) {
@@ -95,7 +95,7 @@ public class FIPixelSyncSaveAdapter implements IStorageSaveAdapter {
         }
     }
 
-    public static <T extends PokemonStorage> T tempStorage(T storage){
+    public static <T extends PokemonStorage> T tempStorage(T storage) {
         if (storage instanceof PlayerPartyStorage) ((PlayerPartyStorage) storage).starterPicked = true;
         return storage;
     }
@@ -106,7 +106,7 @@ public class FIPixelSyncSaveAdapter implements IStorageSaveAdapter {
         val plugin = Main.INSTANCE;
         val uuid = storage.uuid;
         freezePlayer(uuid);//冻结玩家
-        lazyReadMap.put(storage,CompletableFuture.runAsync(() -> {
+        lazyReadMap.put(storage, CompletableFuture.runAsync(() -> {
             Connection connect = ConfigManager.mysql.getConnection();
             try {
                 String dataname = storage.getFile().getName();
@@ -148,12 +148,11 @@ public class FIPixelSyncSaveAdapter implements IStorageSaveAdapter {
     public static void clientRefreshStorage(PokemonStorage storage) {
         if (storage instanceof PCStorage) {
             val pc = (PCStorage) storage;
-            for (EntityPlayerMP mp : storage.getPlayersToUpdate()) {
-                if (mp == null) continue;
-                Pixelmon.network.sendTo(new ClientInitializePC(pc), mp);
-                Pixelmon.network.sendTo(new ClientChangeOpenPC(pc.uuid), mp);
-                pc.sendContents(mp);
-            }
+            val ep = PixelmonCommand.getEntityPlayer(pc.playerUUID);
+            if (ep == null) return;
+            Pixelmon.network.sendTo(new ClientInitializePC(pc), ep);
+            Pixelmon.network.sendTo(new ClientChangeOpenPC(pc.uuid), ep);
+            pc.sendContents(ep);
         }
         if (storage instanceof PlayerPartyStorage) {
             val party = (PlayerPartyStorage) storage;

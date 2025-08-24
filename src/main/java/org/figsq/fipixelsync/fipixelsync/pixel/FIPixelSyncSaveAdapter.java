@@ -7,6 +7,8 @@ import com.pixelmonmod.pixelmon.api.storage.PokemonStorage;
 import com.pixelmonmod.pixelmon.api.storage.StoragePosition;
 import com.pixelmonmod.pixelmon.comm.EnumUpdateType;
 import com.pixelmonmod.pixelmon.comm.packetHandlers.clientStorage.newStorage.ClientSet;
+import com.pixelmonmod.pixelmon.comm.packetHandlers.clientStorage.newStorage.pc.ClientChangeOpenPC;
+import com.pixelmonmod.pixelmon.comm.packetHandlers.clientStorage.newStorage.pc.ClientInitializePC;
 import com.pixelmonmod.pixelmon.storage.PlayerPartyStorage;
 import lombok.Getter;
 import lombok.val;
@@ -148,6 +150,8 @@ public class FIPixelSyncSaveAdapter implements IStorageSaveAdapter {
             val pc = (PCStorage) storage;
             for (EntityPlayerMP mp : storage.getPlayersToUpdate()) {
                 if (mp == null) continue;
+                Pixelmon.network.sendTo(new ClientInitializePC(pc), mp);
+                Pixelmon.network.sendTo(new ClientChangeOpenPC(pc.uuid), mp);
                 pc.sendContents(mp);
             }
         }

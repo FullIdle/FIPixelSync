@@ -13,8 +13,10 @@ import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.world.ChunkLoadEvent;
 import org.figsq.fipixelsync.fipixelsync.optimize.CaptureOpt;
 import org.figsq.fipixelsync.fipixelsync.optimize.PCOpt;
+import org.figsq.fipixelsync.fipixelsync.optimize.RanchOpt;
 import org.figsq.fipixelsync.fipixelsync.optimize.StarterOpt;
 import org.figsq.fipixelsync.fipixelsync.pixel.FIPixelSyncSaveAdapter;
 import org.figsq.fipixelsync.fipixelsync.pixel.FIPixelSyncStorageManager;
@@ -22,6 +24,16 @@ import org.figsq.fipixelsync.fipixelsync.pixel.PixelUtil;
 
 public class BukkitListener implements Listener {
     public static final BukkitListener INSTANCE = new BukkitListener();
+
+
+    @EventHandler
+    public void onChunkLoad(ChunkLoadEvent event) {
+        try {
+            RanchOpt.onChunkLoad(event);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     /**
      * @throws ClassCastException if Pixelmon.storageManager is not FIPixelSyncStorageManager

@@ -21,7 +21,6 @@ import org.figsq.fipixelsync.fipixelsync.Main;
 import org.figsq.fipixelsync.fipixelsync.comm.CommManager;
 import org.figsq.fipixelsync.fipixelsync.comm.messages.PlayerStorageUpdateMessage;
 import org.figsq.fipixelsync.fipixelsync.config.ConfigManager;
-import org.figsq.fipixelsync.fipixelsync.pixel.storage.FIPixelSyncPCStorage;
 
 import javax.annotation.Nonnull;
 import java.sql.Connection;
@@ -88,7 +87,6 @@ public class FIPixelSyncSaveAdapter implements IStorageSaveAdapter {
     @Nonnull
     @Override
     public <T extends PokemonStorage> T load(final UUID uuid,Class<T> clazz) {
-        clazz = finalClass(clazz);
         Main.INSTANCE.getLogger().info("load: " + uuid);
         try {
             return lazyReadMysqlData(tempStorage(clazz.getConstructor(UUID.class).newInstance(uuid)));
@@ -99,16 +97,13 @@ public class FIPixelSyncSaveAdapter implements IStorageSaveAdapter {
         }
     }
 
-    /**
-     * 检查是否转到其他类
-     */
-    public static <T extends PokemonStorage> Class<T> finalClass(final Class<T> clazz) {
-        if (PCStorage.class.equals(clazz)) return (Class<T>) FIPixelSyncPCStorage.class;
-        return clazz;
-    }
-
     public static <T extends PokemonStorage> T tempStorage(final T storage) {
         if (storage instanceof PlayerPartyStorage) ((PlayerPartyStorage) storage).starterPicked = true;
+        if (storage instanceof PCStorage) {
+            val offlinePlayer = Bukkit.getOfflinePlayer(storage.uuid);
+            if (offlinePlayer != null && offlinePlayer.getName() != null)
+                ((PCStorage) storage).setPlayer(offlinePlayer.getUniqueId(), offlinePlayer.getName());
+        }
         return storage;
     }
 

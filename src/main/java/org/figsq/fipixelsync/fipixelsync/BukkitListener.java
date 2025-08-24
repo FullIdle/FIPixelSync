@@ -26,15 +26,6 @@ public class BukkitListener implements Listener {
     public static final BukkitListener INSTANCE = new BukkitListener();
 
 
-    @EventHandler
-    public void onChunkLoad(ChunkLoadEvent event) {
-        try {
-            RanchOpt.onChunkLoad(event);
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     /**
      * @throws ClassCastException if Pixelmon.storageManager is not FIPixelSyncStorageManager
      */

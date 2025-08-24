@@ -54,23 +54,21 @@ public class FIPixelSyncSaveAdapter implements IStorageSaveAdapter {
         val nbt = new NBTTagCompound();
         String json = storage.writeToNBT(nbt).toString();
 
-        //没有玩家不允许使用该包去进行发布
-        //如果想要更新某数据，自定义一个数据包类似 CaptureMessage
-        //发布
-        CommManager.publish(new PlayerStorageUpdateMessage(
-                storage.uuid,
-                !(storage instanceof PlayerPartyStorage),
-                nbt,
-                Bukkit.getPlayer(storage.uuid) == null
-        ));
+        val isOffline = Bukkit.getPlayer(storage.uuid) == null;
+        val isPc = !(storage instanceof PlayerPartyStorage);
 
         asyncSaveMap.put(storage, CompletableFuture.runAsync(() -> {
             syncSave(storage, json);
+            CommManager.publish(new PlayerStorageUpdateMessage(
+                    storage.uuid,
+                    isPc,
+                    isOffline
+            ));
             asyncSaveMap.remove(storage);
         }));
     }
 
-    public void syncSave(final PokemonStorage storage,final String jsonData) {
+    public static void syncSave(final PokemonStorage storage,final String jsonData) {
         Connection connect = ConfigManager.mysql.getConnection();
         try (
                 PreparedStatement prepared = connect.prepareStatement("INSERT INTO player_data (dataname, nbt) VALUES (?, ?) ON DUPLICATE KEY UPDATE nbt = ?")
@@ -109,47 +107,49 @@ public class FIPixelSyncSaveAdapter implements IStorageSaveAdapter {
 
     public static <T extends PokemonStorage> T lazyReadMysqlData(final T storage) {
         val bukkitScheduler = Bukkit.getScheduler();
-        String sql = "SELECT * FROM player_data WHERE dataname = ?";
         val plugin = Main.INSTANCE;
         val uuid = storage.uuid;
         freezePlayer(uuid);//冻结玩家
         lazyReadMap.put(storage, CompletableFuture.runAsync(() -> {
-            Connection connect = ConfigManager.mysql.getConnection();
-            try {
-                String dataname = storage.getFile().getName();
-                try (PreparedStatement prepared = connect.prepareStatement(sql)) {
-                    prepared.setString(1, dataname);
-                    ResultSet rs = prepared.executeQuery();
-                    val json = rs.next() ? rs.getString("nbt") : null;
-                    lazyReadMap.remove(storage);//可以被删除的时候
-
-                    bukkitScheduler.runTask(plugin, () -> {
-                        if (!lazyReadMapHasUUID(uuid)) unfreezePlayer(uuid);//解冻
-                        if (json == null) {
-                            //二次刷新
-                            if (storage instanceof PlayerPartyStorage) {
-                                val party = (PlayerPartyStorage) storage;
-                                //把之前load内设置的设置回来
-                                party.starterPicked = false;
-                            }
-                            return;
-                        }
-                        try {
-                            NBTTagCompound nbt = JsonToNBT.func_180713_a(json);
-                            storage.readFromNBT(nbt);
-                            clientRefreshStorage(storage);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    });
-                    rs.close();
+            val nbt = syncRead(storage);
+            lazyReadMap.remove(storage);
+            bukkitScheduler.runTask(plugin,()->{
+                if (!lazyReadMapHasUUID(uuid)) unfreezePlayer(uuid);//解冻
+                if (nbt == null) {
+                    if (storage instanceof PlayerPartyStorage) {
+                        val party = (PlayerPartyStorage) storage;
+                        //把之前load内设置的设置回来
+                        party.starterPicked = false;
+                    }
+                    return;
                 }
-            } catch (Exception e) {
-                Pixelmon.LOGGER.error("Failed to load storage! " + storage.getClass().getSimpleName() + ", UUID: " + uuid.toString());
-                e.printStackTrace();
-            }
+                try {
+                    storage.readFromNBT(nbt);
+                    clientRefreshStorage(storage);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
         }));
         return storage;
+    }
+
+    public static <T extends PokemonStorage> NBTTagCompound syncRead(T storage) {
+        Connection connect = ConfigManager.mysql.getConnection();
+        String sql = "SELECT * FROM player_data WHERE dataname = ?";
+        try {
+            String dataname = storage.getFile().getName();
+            try (PreparedStatement prepared = connect.prepareStatement(sql)) {
+                prepared.setString(1, dataname);
+                ResultSet rs = prepared.executeQuery();
+                if (rs.next()) return JsonToNBT.func_180713_a(rs.getString("nbt"));
+                rs.close();
+            }
+        } catch (Exception e) {
+            Pixelmon.LOGGER.error("Failed to load storage! " + storage.getClass().getSimpleName() + ", UUID: " + storage.uuid.toString());
+            e.printStackTrace();
+        }
+        return null;
     }
 
     public static void clientRefreshStorage(final PokemonStorage storage) {

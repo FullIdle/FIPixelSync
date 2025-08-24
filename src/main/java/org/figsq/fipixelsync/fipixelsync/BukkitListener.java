@@ -30,16 +30,28 @@ public class BukkitListener implements Listener {
     @EventHandler
     public void onPlayerQuit(final PlayerQuitEvent event) {
         val uniqueId = event.getPlayer().getUniqueId();
+        PixelUtil.unfreezePlayer(uniqueId);
         val manager = ((FIPixelSyncStorageManager) Pixelmon.storageManager);
-        val adapter = manager.getSaveAdapter();
         val party = manager.getParty(uniqueId);
         val pc = manager.getPCForPlayer(uniqueId);
         val partyFuture = FIPixelSyncSaveAdapter.lazyReadMap.get(party);
-        if (partyFuture != null) partyFuture.thenRun(() -> adapter.save(party));
-        else adapter.save(party);
+        if (partyFuture != null) {
+            try {
+                partyFuture.cancel(true);
+            } catch (Exception ignored) {
+            }
+            FIPixelSyncSaveAdapter.lazyReadMap.remove(party);//没能加载玩所以删除缓存
+            manager.getParties().remove(uniqueId);
+        }
         val pcFuture = FIPixelSyncSaveAdapter.lazyReadMap.get(pc);
-        if (pcFuture != null) pcFuture.thenRun(() -> adapter.save(pc));
-        else adapter.save(pc);
+        if (pcFuture != null) {
+            try {
+                pcFuture.cancel(true);
+            } catch (Exception ignored) {
+            }
+            FIPixelSyncSaveAdapter.lazyReadMap.remove(pc);
+            manager.getPcs().remove(uniqueId);
+        }
     }
 
     @EventHandler

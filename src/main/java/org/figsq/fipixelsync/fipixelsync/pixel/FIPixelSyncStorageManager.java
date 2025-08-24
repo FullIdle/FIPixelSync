@@ -22,16 +22,4 @@ public class FIPixelSyncStorageManager extends ReforgedStorageManager {
     public Map<UUID, PlayerPartyStorage> getParties() {
         return this.parties;
     }
-
-    @Override
-    public PlayerPartyStorage getParty(UUID uuid) {
-        if (uuid == null) return null;
-        return super.getParty(uuid);
-    }
-
-    @Override
-    public PCStorage getPCForPlayer(UUID playerUUID) {
-        if (playerUUID == null) return null;
-        return super.getPCForPlayer(playerUUID);
-    }
 }

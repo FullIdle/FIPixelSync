@@ -3,7 +3,7 @@ plugins {
 }
 
 group = 'org.figsq.fipixelsync.fipixelsync.Main'
-version = '2.0-STABLE'
+version = '2.1-SNAPSHOT'
 
 repositories {
     mavenLocal()

@@ -3,9 +3,8 @@ package org.figsq.fipixelsync.fipixelsync.comm;
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteStreams;
 import lombok.val;
-import org.bukkit.Bukkit;
-import org.figsq.fipixelsync.fipixelsync.Main;
 import org.figsq.fipixelsync.fipixelsync.comm.messages.PlayerCaptureMessage;
+import org.figsq.fipixelsync.fipixelsync.comm.messages.PlayerJoinServerMessage;
 import org.figsq.fipixelsync.fipixelsync.comm.messages.PlayerStorageUpdateMessage;
 import org.figsq.fipixelsync.fipixelsync.config.ConfigManager;
 
@@ -18,15 +17,16 @@ import java.util.concurrent.CompletableFuture;
 
 public class CommManager {
     public static final Map<Class<? extends IMessage>, IHandler<? extends IMessage>> registeredMessageHandler = new HashMap<>();
-    public static final String CHANNEL = "fipixelsync:comm";
+    public static final String CHANNEL = "fipixelsync:comm:global";
     public static final byte[] CHANNEL_BYTES = CHANNEL.getBytes(StandardCharsets.UTF_8);
-    public static PacketHandlerPubSub nowPubSub;
+    public static PacketHandlerPubSub globalPubSub;
+    public static PacketHandlerPubSub singlePubSub;
 
-    public static <T extends IMessage> void registerMessageHandler(Class<T> message, IHandler<T> handler) {
+    public static <T extends IMessage> void registerMessageHandler(final Class<T> message,final IHandler<T> handler) {
         registeredMessageHandler.put(message, handler);
     }
 
-    public static <T extends IMessage> IHandler<T> getMessageHandler(Class<T> clazz) {
+    public static <T extends IMessage> IHandler<T> getMessageHandler(final Class<T> clazz) {
         return (IHandler<T>) registeredMessageHandler.get(clazz);
     }
 
@@ -36,13 +36,25 @@ public class CommManager {
      * @see PacketHandlerPubSub
      */
     public static void subscribe() {
-        val bukkitScheduler = Bukkit.getScheduler();
-        nowPubSub = new PacketHandlerPubSub();
-        bukkitScheduler.runTaskAsynchronously(Main.INSTANCE, () -> {
+        val uuid = UUID.randomUUID();
+        globalPubSub = new PacketHandlerPubSub(uuid);
+        singlePubSub = new PacketHandlerPubSub(uuid);
+        CompletableFuture.runAsync(() -> {
             try (val resource = ConfigManager.redis.getResource()) {
-                resource.subscribe(nowPubSub, CHANNEL_BYTES);
+                resource.subscribe(globalPubSub, CHANNEL_BYTES);
             }
         });
+        val toUUIDChannelBytes = getToUUIDChannelBytes(singlePubSub.uuid);
+        CompletableFuture.runAsync(() -> {
+            try (val resource = ConfigManager.redis.getResource()) {
+                resource.subscribe(singlePubSub, toUUIDChannelBytes);
+            }
+        });
+    }
+
+    public static byte[] getToUUIDChannelBytes(final UUID uuid) {
+        val s = CHANNEL + ":" + uuid.toString();
+        return s.getBytes(StandardCharsets.UTF_8);
     }
 
     public static void publish(final IMessage message) {
@@ -53,12 +65,20 @@ public class CommManager {
         });
     }
 
+    public static void publishTo(final UUID uuid, final IMessage message) {
+        CompletableFuture.runAsync(() -> {
+            try (val resource = ConfigManager.redis.getResource()) {
+                resource.publish(getToUUIDChannelBytes(uuid), encode(message));
+            }
+        });
+    }
+
     public static byte[] encode(final IMessage message) {
         val buffer = ByteStreams.newDataOutput();
         buffer.writeUTF(message.getClass().getName());
 
-        buffer.writeLong(nowPubSub.uuid.getMostSignificantBits());
-        buffer.writeLong(nowPubSub.uuid.getLeastSignificantBits());
+        buffer.writeLong(globalPubSub.uuid.getMostSignificantBits());
+        buffer.writeLong(globalPubSub.uuid.getLeastSignificantBits());
         message.encode(buffer);
         return buffer.toByteArray();
     }
@@ -71,8 +91,8 @@ public class CommManager {
         val clazzName = buffer.readUTF();
         val sender = new UUID(buffer.readLong(), buffer.readLong());
         val message = createMessage(clazzName, buffer);
-        if (message == null || (!message.canNotifyPublisher() && sender.equals(nowPubSub.uuid))) return;
-        handleMessage(sender,message);
+        if (message == null || (!message.canNotifyPublisher() && sender.equals(globalPubSub.uuid))) return;
+        handleMessage(sender, message);
     }
 
     /**
@@ -99,16 +119,18 @@ public class CommManager {
     public static void handleMessage(final UUID sender, final IMessage message) {
         val messageHandler = getMessageHandler(message.getClass());
         if (messageHandler == null) return;
-        ((IHandler<IMessage>) messageHandler).handle(sender,message);
+        ((IHandler<IMessage>) messageHandler).handle(sender, message);
     }
 
     public static void unsubscribe() {
-        nowPubSub.unsubscribe();
+        globalPubSub.unsubscribe();
+        singlePubSub.unsubscribe();
     }
 
     static {
         //注册我自己默认需要用的包
         registerMessageHandler(PlayerStorageUpdateMessage.class, PlayerStorageUpdateMessage.Handler.INSTANCE);
         registerMessageHandler(PlayerCaptureMessage.class, PlayerCaptureMessage.Handler.INSTANCE);
+        registerMessageHandler(PlayerJoinServerMessage.class, PlayerJoinServerMessage.Handler.INSTANCE);
     }
 }

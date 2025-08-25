@@ -3,10 +3,6 @@ package org.figsq.fipixelsync.fipixelsync.comm;
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.util.UUID;
-
 /**
  * 感觉叫序列化和反序列化合适一点。。。。
  */
@@ -23,8 +19,4 @@ public interface IMessage {
     default boolean canNotifyPublisher() {
         return true;
     };
-
-    default void handle(UUID sender) {
-        CommManager.handleMessage(sender,this);
-    }
 }

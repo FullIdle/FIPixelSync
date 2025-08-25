@@ -7,6 +7,7 @@ import lombok.val;
 import org.bukkit.Bukkit;
 import org.figsq.fipixelsync.fipixelsync.Main;
 
+//TODO 不一定用
 public class StarterOpt {
     public static void onPixelmonReceived(PixelmonReceivedEvent event) {
         if (!event.receiveType.equals(ReceiveType.Starter)) return;

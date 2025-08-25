@@ -1,5 +1,6 @@
 package org.figsq.fipixelsync.fipixelsync.pixel;
 
+import com.pixelmonmod.pixelmon.api.storage.IStorageSaveScheduler;
 import com.pixelmonmod.pixelmon.api.storage.PCStorage;
 import com.pixelmonmod.pixelmon.storage.PlayerPartyStorage;
 import com.pixelmonmod.pixelmon.storage.ReforgedStorageManager;
@@ -11,8 +12,8 @@ import java.util.UUID;
  * @see ReforgedStorageManager
  */
 public class FIPixelSyncStorageManager extends ReforgedStorageManager {
-    public FIPixelSyncStorageManager() {
-        super(PixelUtil.oldManager.getSaveScheduler(), FIPixelSyncSaveAdapter.INSTANCE);
+    public FIPixelSyncStorageManager(IStorageSaveScheduler saveScheduler) {
+        super(saveScheduler, FIPixelSyncSaveAdapter.INSTANCE);
     }
 
     public Map<UUID, PCStorage> getPcs() {

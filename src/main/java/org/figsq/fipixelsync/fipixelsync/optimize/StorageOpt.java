@@ -8,11 +8,13 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.figsq.fipixelsync.fipixelsync.Main;
 import org.figsq.fipixelsync.fipixelsync.comm.CommManager;
 import org.figsq.fipixelsync.fipixelsync.comm.messages.PlayerJoinServerMessage;
+import org.figsq.fipixelsync.fipixelsync.comm.messages.PlayerStorageUpdateMessage;
 import org.figsq.fipixelsync.fipixelsync.config.ConfigManager;
 import org.figsq.fipixelsync.fipixelsync.pixel.FIPixelSyncPCStorage;
 import org.figsq.fipixelsync.fipixelsync.pixel.FIPixelSyncPlayerPartyStorage;
 import org.figsq.fipixelsync.fipixelsync.pixel.FIPixelSyncSaveAdapter;
 
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 public class StorageOpt {
@@ -27,15 +29,23 @@ public class StorageOpt {
         val pc = ((FIPixelSyncPCStorage) manager.getPCForPlayer(uniqueId));
         party.setNeedRead(true);
         pc.setNeedRead(true);
+        val partyForce = party.getForceUpdateNeedServerList();
+        val pcForce = pc.getForceUpdateNeedServerList();
+        partyForce.clear();
+        pcForce.clear();
         CompletableFuture.runAsync(()->{
             //虽然默认就是true，但没准这里有缓存所以得再次上锁
             try (val resource = ConfigManager.redis.getResource()){
-                val num = resource.pubsubNumSub(CommManager.CHANNEL).getOrDefault(CommManager.CHANNEL, 0L);
-                if (num > 1) {
-                    //通知其他服务器 这回回复一个update包
-                    CommManager.publish(new PlayerJoinServerMessage(uniqueId));
-                    return;
+                val head = CommManager.CHANNEL + ":";
+
+                for (String channel : resource.pubsubChannels()) {
+                    if (channel.startsWith(head)) {
+                        val uuid = UUID.fromString(channel.substring(head.length()));
+                        partyForce.add(uuid);
+                        pcForce.add(uuid);
+                    }
                 }
+                CommManager.publish(new PlayerJoinServerMessage(uniqueId));
             }
             //没有其他子服
             Bukkit.getScheduler().runTask(Main.INSTANCE, ()->{
@@ -51,11 +61,8 @@ public class StorageOpt {
     public static void onQuit(PlayerQuitEvent event) {
         val manager = Pixelmon.storageManager;
         val uniqueId = event.getPlayer().getUniqueId();
-        val adapter = manager.getSaveAdapter();
         val party = ((FIPixelSyncPlayerPartyStorage) manager.getParty(uniqueId));
         val pc = ((FIPixelSyncPCStorage) manager.getPCForPlayer(uniqueId));
-        adapter.save(party);
-        adapter.save(pc);
         party.setNeedRead(false);
         pc.setNeedRead(false);
         val partyFuture = party.safeGetReadProcessingFuture();
@@ -68,5 +75,10 @@ public class StorageOpt {
             pcFuture.cancel(true);
         } catch (Exception ignored) {
         }
+        party.getForceUpdateNeedServerList().clear();
+
+        //所有服务器进行强更新
+        FIPixelSyncSaveAdapter.asyncSave(party,()->CommManager.publish(new PlayerStorageUpdateMessage(uniqueId, true, true)));
+        FIPixelSyncSaveAdapter.asyncSave(pc,()->CommManager.publish(new PlayerStorageUpdateMessage(uniqueId, false, true)));
     }
 }

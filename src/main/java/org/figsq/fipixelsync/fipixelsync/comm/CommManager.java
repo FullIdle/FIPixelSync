@@ -17,7 +17,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class CommManager {
     public static final Map<Class<? extends IMessage>, IHandler<? extends IMessage>> registeredMessageHandler = new HashMap<>();
-    public static final String CHANNEL = "fipixelsync:comm:global";
+    public static final String CHANNEL = "fipixelsync:comm";
     public static final byte[] CHANNEL_BYTES = CHANNEL.getBytes(StandardCharsets.UTF_8);
     public static PacketHandlerPubSub globalPubSub;
     public static PacketHandlerPubSub singlePubSub;
@@ -57,18 +57,18 @@ public class CommManager {
         return s.getBytes(StandardCharsets.UTF_8);
     }
 
-    public static void publish(final IMessage message) {
+    public static void publish(final IMessage... messages) {
         CompletableFuture.runAsync(() -> {
             try (val resource = ConfigManager.redis.getResource()) {
-                resource.publish(CHANNEL_BYTES, encode(message));
+                for (IMessage message : messages) resource.publish(CHANNEL_BYTES, encode(message));
             }
         });
     }
 
-    public static void publishTo(final UUID uuid, final IMessage message) {
+    public static void publishTo(final UUID uuid, final IMessage... messages) {
         CompletableFuture.runAsync(() -> {
             try (val resource = ConfigManager.redis.getResource()) {
-                resource.publish(getToUUIDChannelBytes(uuid), encode(message));
+                for (IMessage message : messages) resource.publish(getToUUIDChannelBytes(uuid), encode(message));
             }
         });
     }

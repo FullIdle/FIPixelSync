@@ -12,6 +12,7 @@ import org.figsq.fipixelsync.fipixelsync.comm.IMessage;
 import org.figsq.fipixelsync.fipixelsync.pixel.FIPixelSyncPCStorage;
 import org.figsq.fipixelsync.fipixelsync.pixel.FIPixelSyncPlayerPartyStorage;
 import org.figsq.fipixelsync.fipixelsync.pixel.FIPixelSyncSaveAdapter;
+import org.figsq.fipixelsync.fipixelsync.pixel.IFIPixelSync;
 
 import java.util.UUID;
 
@@ -22,16 +23,22 @@ import java.util.UUID;
 public class PlayerStorageUpdateMessage implements IMessage {
     public UUID owner;
     //是否是由没有该玩家的服务器发送来的
+    public boolean isParty;
+    public boolean isForce;
 
     public PlayerStorageUpdateMessage() {}
-    public PlayerStorageUpdateMessage(final UUID owner) {
+    public PlayerStorageUpdateMessage(final UUID owner,final boolean isParty, final boolean isForce) {
         this.owner = owner;
+        this.isParty = isParty;
+        this.isForce = isForce;
     }
 
     @Override
     public ByteArrayDataOutput encode(ByteArrayDataOutput buffer) {
         buffer.writeLong(this.owner.getMostSignificantBits());
         buffer.writeLong(this.owner.getLeastSignificantBits());
+        buffer.writeBoolean(this.isParty);
+        buffer.writeBoolean(this.isForce);
         return buffer;
     }
 
@@ -39,6 +46,8 @@ public class PlayerStorageUpdateMessage implements IMessage {
     @Override
     public IMessage decode(ByteArrayDataInput buffer) {
         this.owner = new UUID(buffer.readLong(), buffer.readLong());
+        this.isParty = buffer.readBoolean();
+        this.isForce = buffer.readBoolean();
         return this;
     }
 
@@ -47,22 +56,20 @@ public class PlayerStorageUpdateMessage implements IMessage {
         return false;
     }
 
-    public static class Handler implements IHandler<PlayerStorageUpdateMessage>{
+    public static class Handler implements IHandler<PlayerStorageUpdateMessage> {
         public static final Handler INSTANCE = new Handler();
 
         @Override
-        public void handle(UUID sender,PlayerStorageUpdateMessage message) {
+        public void handle(UUID sender, PlayerStorageUpdateMessage message) {
             //转同步有时候可能会有多个包一起过来
-            Bukkit.getScheduler().runTask(Main.INSTANCE, ()-> {
+            Bukkit.getScheduler().runTask(Main.INSTANCE, () -> {
                 val manager = Pixelmon.storageManager;
-                val party = ((FIPixelSyncPlayerPartyStorage) manager.getParty(message.owner));
-                val pc = ((FIPixelSyncPCStorage) manager.getPCForPlayer(message.owner));
-                if (party.isNeedRead() && !party.isReadLock()) {
-                    FIPixelSyncSaveAdapter.asyncRead(message.owner, party);
+                val storage = message.isParty ? manager.getParty(message.owner) : manager.getPCForPlayer(message.owner);
+                if (message.isForce) {
+                    FIPixelSyncSaveAdapter.asyncRead(message.owner, FIPixelSyncSaveAdapter.castStorage(storage));
+                    return;
                 }
-                if (pc.isNeedRead() && !pc.isReadLock()) {
-                    FIPixelSyncSaveAdapter.asyncRead(message.owner, pc);
-                }
+                ((IFIPixelSync) storage).forceUpdateReceived(sender);
             });
         }
     }

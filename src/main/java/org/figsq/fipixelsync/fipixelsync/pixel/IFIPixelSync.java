@@ -2,6 +2,8 @@ package org.figsq.fipixelsync.fipixelsync.pixel;
 
 import lombok.val;
 
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -31,6 +33,10 @@ public interface IFIPixelSync {
         return this.safeGetReadProcessingFuture() != null;
     }
 
+    default boolean isSaveWait() {
+        return this.safeGetSaveProcessingFuture() != null;
+    }
+
     void setReadProcessingFuture(CompletableFuture<Void> future);
 
     boolean isNeedRead();
@@ -50,4 +56,24 @@ public interface IFIPixelSync {
         return future;
     }
     void setSaveProcessingFuture(CompletableFuture<Void> future);
+
+    /**
+     * 强更列表
+     */
+    List<UUID> getForceUpdateNeedServerList();
+
+
+    default void forceUpdateReceived(UUID serverUUID) {
+        val list = getForceUpdateNeedServerList();
+        if (list.isEmpty()) return;
+        if (!this.isNeedRead() || this.isReadLock()) list.clear();
+        list.remove(serverUUID);
+        if (list.isEmpty()) this.forceUpdate();
+    }
+
+    /**
+     * 强更新
+     */
+    default void forceUpdate() {
+    }
 }

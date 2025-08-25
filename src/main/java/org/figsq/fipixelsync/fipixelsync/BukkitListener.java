@@ -1,6 +1,5 @@
 package org.figsq.fipixelsync.fipixelsync;
 
-import com.pixelmonmod.pixelmon.Pixelmon;
 import com.pixelmonmod.pixelmon.api.events.CaptureEvent;
 import com.pixelmonmod.pixelmon.api.events.ThrowPokeballEvent;
 import lombok.val;
@@ -14,10 +13,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.figsq.fipixelsync.fipixelsync.optimize.CaptureOpt;
 import org.figsq.fipixelsync.fipixelsync.optimize.StorageOpt;
-import org.figsq.fipixelsync.fipixelsync.pixel.FIPixelSyncPCStorage;
-import org.figsq.fipixelsync.fipixelsync.pixel.FIPixelSyncPlayerPartyStorage;
-
-import java.util.UUID;
+import org.figsq.fipixelsync.fipixelsync.pixel.FIPixelSyncStorageManager;
 
 public class BukkitListener implements Listener {
     public static final BukkitListener INSTANCE = new BukkitListener();
@@ -45,31 +41,26 @@ public class BukkitListener implements Listener {
             priority = EventPriority.LOWEST
     )
     public void interact(final PlayerInteractEvent event) {
-        if (isLock(event.getPlayer().getUniqueId())) event.setCancelled(true);
+        if (FIPixelSyncStorageManager.isLock(event.getPlayer().getUniqueId())) event.setCancelled(true);
     }
     @EventHandler(
             priority = EventPriority.LOWEST
     )
     public void command(final PlayerCommandPreprocessEvent event) {
-        if (isLock(event.getPlayer().getUniqueId())) event.setCancelled(true);
+        if (FIPixelSyncStorageManager.isLock(event.getPlayer().getUniqueId())) event.setCancelled(true);
     }
     @EventHandler(
             priority = EventPriority.LOWEST
     )
     public void onPlayerInteract(final PlayerCommandPreprocessEvent event) {
-        if (isLock(event.getPlayer().getUniqueId())) event.setCancelled(true);
+        if (FIPixelSyncStorageManager.isLock(event.getPlayer().getUniqueId())) event.setCancelled(true);
     }
     @EventHandler
     public void forge(ForgeEvent event){
         if (event.getForgeEvent() instanceof ThrowPokeballEvent) {
             val e = (ThrowPokeballEvent) event.getForgeEvent();
-            if (isLock(e.player.func_110124_au())) e.setCanceled(true);
+            if (FIPixelSyncStorageManager.isLock(e.player.func_110124_au())) e.setCanceled(true);
         }
-    }
-
-    public static boolean isLock(UUID uuid) {
-        val manager = Pixelmon.storageManager;
-        return ((FIPixelSyncPlayerPartyStorage) manager.getParty(uuid)).isLock() || ((FIPixelSyncPCStorage) manager.getPCForPlayer(uuid)).isLock();
     }
     /*freeze ==*/
 }

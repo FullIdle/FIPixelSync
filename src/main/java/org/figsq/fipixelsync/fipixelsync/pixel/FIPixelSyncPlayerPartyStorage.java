@@ -4,6 +4,8 @@ import com.pixelmonmod.pixelmon.storage.PlayerPartyStorage;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -12,6 +14,7 @@ import java.util.concurrent.CompletableFuture;
 public class FIPixelSyncPlayerPartyStorage extends PlayerPartyStorage implements IFIPixelSync {
     private CompletableFuture<Void> readProcessingFuture;
     private CompletableFuture<Void> saveProcessingFuture;
+    private List<UUID> forceUpdateNeedServerList = new ArrayList<>();
     private boolean needRead = true;
 
     public FIPixelSyncPlayerPartyStorage(UUID uuid, boolean shouldSendUpdates) {
@@ -21,5 +24,10 @@ public class FIPixelSyncPlayerPartyStorage extends PlayerPartyStorage implements
 
     public FIPixelSyncPlayerPartyStorage(UUID uuid) {
         this(uuid,true);
+    }
+
+    @Override
+    public void forceUpdate() {
+        FIPixelSyncSaveAdapter.asyncRead(this.uuid, this);
     }
 }

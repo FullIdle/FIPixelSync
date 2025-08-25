@@ -39,12 +39,12 @@ public class FIPixelSyncSaveAdapter implements IStorageSaveAdapter {
     @Override
     public void save(final PokemonStorage storage) {
         Main.INSTANCE.getLogger().info("save: " + Bukkit.getOfflinePlayer(storage.uuid).getName());
-        val nbt = new NBTTagCompound();
         if (!(storage instanceof IFIPixelSync)) throw new RuntimeException("Storage must implement IFIPixelSync");
         //为加载成功的不进行保存
         if (((IFIPixelSync) storage).isLock()) return;
-        String json = storage.writeToNBT(nbt).toString();
-        asyncSave(castStorage(storage), json);
+        asyncSave(castStorage(storage),Bukkit.getPlayer(storage.uuid) == null ? null : () -> {
+            CommManager.publish(new PlayerStorageUpdateMessage(storage.uuid, storage instanceof PlayerPartyStorage, true));
+        });
     }
 
     public static <T extends PokemonStorage & IFIPixelSync> T castStorage(PokemonStorage storage) {
@@ -52,17 +52,17 @@ public class FIPixelSyncSaveAdapter implements IStorageSaveAdapter {
         return (T) storage;
     }
 
-    public static <T extends PokemonStorage & IFIPixelSync> void asyncSave(final T storage, final String jsonData) {
+    public static <T extends PokemonStorage & IFIPixelSync> void asyncSave(final T storage,final Runnable saveAfter) {
         val future = storage.safeGetSaveProcessingFuture();
         if (future != null) try {
             future.cancel(true);
         } catch (Exception ignored) {
         }
+        val json = storage.writeToNBT(new NBTTagCompound()).toString();
         storage.setSaveProcessingFuture(CompletableFuture.runAsync(()->{
-            syncSave(storage,jsonData);
-            storage.setSaveProcessingFuture(null);
-            //通知其他服务器进行更新
-            CommManager.publish(new PlayerStorageUpdateMessage(storage.uuid));
+            syncSave(storage,json);
+            if (saveAfter != null) saveAfter.run();
+            Bukkit.getScheduler().runTask(Main.INSTANCE, ()-> storage.setSaveProcessingFuture(null));
         }));
     }
 
@@ -106,6 +106,7 @@ public class FIPixelSyncSaveAdapter implements IStorageSaveAdapter {
             Bukkit.getScheduler().runTask(Main.INSTANCE, ()->{
                 storage.setReadProcessingFuture(null);
                 storage.setNeedRead(false);//不需要再次读取
+                storage.getForceUpdateNeedServerList().clear();//强更列表舍弃
                 if (storage instanceof PlayerPartyStorage) ((PlayerPartyStorage) storage).starterPicked = false;
                 if (nbt != null) storage.readFromNBT(nbt);
                 clientRefreshStorage(storage);

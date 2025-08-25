@@ -7,6 +7,8 @@ import lombok.Setter;
 import lombok.val;
 import org.bukkit.Bukkit;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -15,6 +17,7 @@ import java.util.concurrent.CompletableFuture;
 public class FIPixelSyncPCStorage extends PCStorage implements IFIPixelSync {
     private CompletableFuture<Void> readProcessingFuture;
     private CompletableFuture<Void> saveProcessingFuture;
+    private List<UUID> forceUpdateNeedServerList = new ArrayList<>();
     private boolean needRead = true;
 
     public FIPixelSyncPCStorage(UUID uuid, int boxes) {
@@ -27,5 +30,10 @@ public class FIPixelSyncPCStorage extends PCStorage implements IFIPixelSync {
 
     public FIPixelSyncPCStorage(UUID uuid) {
         this(uuid, PixelmonConfig.computerBoxes);
+    }
+
+    @Override
+    public void forceUpdate() {
+        FIPixelSyncSaveAdapter.asyncRead(this.uuid, this);
     }
 }

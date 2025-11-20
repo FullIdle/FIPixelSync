@@ -1,6 +1,7 @@
 package org.figsq.fipixelsync.fipixelsync.pixel;
 
 import com.pixelmonmod.pixelmon.api.storage.IStorageSaveAdapter;
+import com.pixelmonmod.pixelmon.api.storage.IStorageSaveScheduler;
 import com.pixelmonmod.pixelmon.api.storage.PCStorage;
 import com.pixelmonmod.pixelmon.api.storage.PokemonStorage;
 import com.pixelmonmod.pixelmon.storage.PlayerPartyStorage;
@@ -23,73 +24,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * @see com.pixelmonmod.pixelmon.api.storage.IStorageSaveScheduler#save(PokemonStorage)
+ * @see IStorageSaveScheduler#save(PokemonStorage)
  */
 @Getter
 public class FISaveAdapter implements IStorageSaveAdapter {
-    /**
-     * 背包存储的等待键值对表
-     */
-    public static final ConcurrentMap<UUID, List<UUID>> partyWaitMap = new ConcurrentHashMap<>();
-    /**
-     * PC存储的等待键值对表
-     */
-    public static final ConcurrentMap<UUID, List<UUID>> pcWaitMap = new ConcurrentHashMap<>();
     private final IStorageSaveAdapter originalSaveAdapter;
-
     public FISaveAdapter(IStorageSaveAdapter originalSaveAdapter) {
         this.originalSaveAdapter = originalSaveAdapter;
-    }
-
-    //= FISaveAdapter
-
-    private static <T extends PokemonStorage & FIStorage> void savingStorageData(T storage) {
-        //MYSQL存储
-        ConfigManager.mysql.saveStorage(storage);
-        //Redis 通讯 发送保存包 发送的强制包
-        CommManager.publish(new PlayerStorageRespondMessage(storage.uuid, storage instanceof PlayerPartyStorage, true));
-    }
-
-    /**
-     * 发送加服通知，让其他服务器回包给现在这个服务器然后进行处理
-     *
-     * @param uuid 玩家UUID
-     * @see PlayerJoinServerMessage
-     * @see PlayerStorageRespondMessage
-     * @see #partyWaitMap
-     * @see #pcWaitMap
-     */
-    private static void requestLoadStorageData(UUID uuid) {
-        val subscribedUUIDs = CommManager.getAllSubscribedUUID();
-        partyWaitMap.put(uuid, new ArrayList<>(subscribedUUIDs));
-        pcWaitMap.put(uuid, new ArrayList<>(subscribedUUIDs));
-
-        CommManager.publish(new PlayerJoinServerMessage(uuid));
-
-        //加载请求发送后，五秒后，检查等待键值对表内容是否还有
-        Bukkit.getScheduler().runTaskLater(Main.PLUGIN, () -> {
-            val partyWaitUUIDs = partyWaitMap.remove(uuid);
-            val pcWaitUUIDs = pcWaitMap.remove(uuid);
-
-            val player = Bukkit.getPlayer(uuid);
-            if (player == null) return;
-
-            if (partyWaitUUIDs != null && !partyWaitUUIDs.isEmpty()) {
-                player.kickPlayer("§c等待其他服务器回包时间过长,请重新进服(为了数据安全)");
-                return;
-            }
-
-            if (pcWaitUUIDs != null && !pcWaitUUIDs.isEmpty())
-                player.kickPlayer("§c等待其他服务器回包时间过长,请重新进服(为了数据安全)");
-        }, 20 * 5L);
-    }
-
-    //=load
-
-    @NotNull
-    public static <T extends PokemonStorage> T newStorage(UUID uuid, Class<T> aClass) {
-        if (PCStorage.class.isAssignableFrom(aClass)) return (T) new FIPCStorage(uuid);
-        return (T) new FIPlayerPartyStorage(uuid);
     }
 
     /**
@@ -116,28 +57,113 @@ public class FISaveAdapter implements IStorageSaveAdapter {
         return fiStorage;
     }
 
+    @NotNull
+    public static <T extends PokemonStorage> T newStorage(UUID uuid, Class<T> aClass) {
+        if (PCStorage.class.isAssignableFrom(aClass)) return (T) new FIPCStorage(uuid);
+        return (T) new FIPlayerPartyStorage(uuid);
+    }
+
+    //= FISaveAdapter
+
+    /**
+     * 背包存储的等待键值对表
+     */
+    public static final ConcurrentMap<UUID, List<UUID>> partyWaitMap = new ConcurrentHashMap<>();
+
+    /**
+     * PC存储的等待键值对表
+     */
+    public static final ConcurrentMap<UUID, List<UUID>> pcWaitMap = new ConcurrentHashMap<>();
+
     //=save
+
+    private static <T extends PokemonStorage & FIStorage> void savingStorageData(T storage) {
+        //MYSQL存储
+        ConfigManager.mysql.saveStorage(storage);
+        //Redis 通讯 发送保存包 发送的强制包
+        CommManager.publish(new PlayerStorageRespondMessage(storage.uuid, storage instanceof PlayerPartyStorage, true));
+    }
+
     public <T extends PokemonStorage & FIStorage> void saveStorageData(T fiStorage) {
         //保存时候数据还在被加载或者其他保存则放弃保存行为
-        if (fiStorage.isLock()) return;
+        if (fiStorage.isLock(true)) return;
         fiStorage.updateSavingThen(() -> savingStorageData(fiStorage));
     }
 
-    public <T extends PokemonStorage & FIStorage> void tryLoadStorageData(T storage) {
-        storage.updateLoadingThen(() -> requestLoadStorageData(storage.uuid));
+    //=load
+
+    /**
+     * 发送加服通知，让其他服务器回包给现在这个服务器然后进行处理
+     *
+     * @param storage 玩家的背包存储，这会间接将pc一起加载了(由于懒得多写一次判断，所以写斯传玩家背包存储)
+     * @see PlayerJoinServerMessage
+     * @see PlayerStorageRespondMessage
+     * @see #partyWaitMap
+     * @see #pcWaitMap
+     */
+    private static void requestLoadStorageData(FIPlayerPartyStorage storage) {
+        val subscribedUUIDs = CommManager.getAllSubscribedUUID();
+        subscribedUUIDs.remove(CommManager.globalPubSub.uuid);
+
+        //单服务器
+        if (subscribedUUIDs.isEmpty()) {
+            System.out.println("是单服务器直接加载");
+            loadStorageData(storage);
+            //同时加载PC
+            loadStorageData(((FIPCStorage) FIStorageManager.getInstance().getPCForPlayer(storage.uuid)));
+            return;
+        }
+
+        val uuid = storage.uuid;
+
+        partyWaitMap.put(uuid, new ArrayList<>(subscribedUUIDs));
+        pcWaitMap.put(uuid, new ArrayList<>(subscribedUUIDs));
+
+        System.out.println("正式发送join包");
+        CommManager.publish(new PlayerJoinServerMessage(uuid));
+
+        //加载请求发送后，五秒后，检查等待键值对表内容是否还有
+        Bukkit.getScheduler().runTaskLater(Main.PLUGIN, () -> {
+            storage.setFreeze(false);
+
+            val partyWaitUUIDs = partyWaitMap.remove(uuid);
+            val pcWaitUUIDs = pcWaitMap.remove(uuid);
+
+            val player = Bukkit.getPlayer(uuid);
+            if (player == null) return;
+
+            if (partyWaitUUIDs != null && !partyWaitUUIDs.isEmpty()) {
+                player.kickPlayer("§c等待其他服务器回包时间过长,请重新进服(为了数据安全)");
+                return;
+            }
+
+            if (pcWaitUUIDs != null && !pcWaitUUIDs.isEmpty())
+                player.kickPlayer("§c等待其他服务器回包时间过长,请重新进服(为了数据安全)");
+        }, 20 * 5L);
+    }
+
+    public static void tryLoadStorageData(FIPlayerPartyStorage storage) {
+        System.out.println("冻结");
+        storage.setFreeze(true);
+        storage.updateLoadingThen(() -> requestLoadStorageData(storage));
     }
 
     /**
      * 正常异步流程加载数据(在各种判断检测完后的正式加载)
      */
-    public <T extends PokemonStorage & FIStorage> void loadStorageData(T storage) {
+    public static <T extends PokemonStorage & FIStorage> void loadStorageData(T storage) {
         storage.updateLoadingThen(() -> loadingStorageData(storage));
     }
 
     //正式加载nbt数据到Bukkit内
-    private <T extends PokemonStorage & FIStorage> void loadingStorageData(T storage) {
+    private static <T extends PokemonStorage & FIStorage> void loadingStorageData(T storage) {
+        System.out.println("解冻");
+        storage.setFreeze(false);
         val nbt = ConfigManager.mysql.getStorageData(storage);
+        System.out.println("nbt = " + nbt);
         if (nbt == null) return;
+        System.out.println("读nbt");
         storage.readFromNBT(nbt);
+
     }
 }

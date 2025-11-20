@@ -68,11 +68,11 @@ public class BukkitListener implements Listener {
     }
 
     private void check(Cancellable cancellable, Player player) {
-        if (FIStorageManager.getInstance().isLock(player.getUniqueId())) cancellable.setCancelled(true);
+        if (FIStorageManager.getInstance().isLock(player.getUniqueId(), false)) cancellable.setCancelled(true);
     }
 
     private void check(Event event, Player player) {
-        if (FIStorageManager.getInstance().isLock(player.getUniqueId())) event.setCanceled(true);
+        if (FIStorageManager.getInstance().isLock(player.getUniqueId(), false)) event.setCanceled(true);
     }
     /*freeze ==*/
 }

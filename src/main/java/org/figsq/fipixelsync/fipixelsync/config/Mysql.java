@@ -126,9 +126,9 @@ public class Mysql {
             statement.setString(1, storage.getFile().getName());
             try (val rs = statement.executeQuery()) {
                 if (rs.next()) {
-                    val dataJson = rs.getString("data");
+                    val dataJson = rs.getString("nbt");
                     try {
-                        JsonToNBT.func_180713_a(dataJson);
+                        return JsonToNBT.func_180713_a(dataJson);
                     } catch (NBTException e) {
                         throw new RuntimeException(e);
                     }

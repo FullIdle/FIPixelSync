@@ -1,12 +1,13 @@
 package org.figsq.fipixelsync.fipixelsync.pixel;
 
+import com.pixelmonmod.pixelmon.api.storage.PokemonStorage;
 import lombok.val;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
+import java.util.function.BiConsumer;
 
-public interface FIStorage extends Function<Throwable, Void> {
+public interface FIStorage extends BiConsumer<Void, Throwable> {
     /**
      * 是否是冻结
      *
@@ -16,6 +17,9 @@ public interface FIStorage extends Function<Throwable, Void> {
 
     /**
      * 设置玩家是否冻结
+     * 主要提供给加载期间的中空气
+     * 玩家进服后会触发 {@link FISaveAdapter#tryLoadStorageData(FIPlayerPartyStorage)} 并被打上冻结 只对 Party生效
+     * 当 {@link FISaveAdapter#loadStorageData(PokemonStorage)} 触发后会强制解除一次冻结 对 PC Party都生效
      *
      * @param lock 是否冻结
      */
@@ -59,21 +63,8 @@ public interface FIStorage extends Function<Throwable, Void> {
      *
      * @return 检查多结果后是否正在被处理数据 如果是 {@code ture} 则证明数据正在被操作
      */
-    default boolean isLock() {
-        return isFreeze() || !getSavingFuture().isDone() || !getLoadingFuture().isDone();
-    }
-
-    /**
-     * 全局静态的报错处理
-     *
-     * @param throwable 报错
-     * @return 理论不返回
-     */
-    @Override
-    default Void apply(Throwable throwable) {
-        throwable.printStackTrace();
-        this.setFreeze(true);
-        throw new RuntimeException(throwable);
+    default boolean isLock(boolean excludeFreezing) {
+        return (!excludeFreezing && isFreeze()) || !getSavingFuture().isDone() || !getLoadingFuture().isDone();
     }
 
     /**
@@ -83,8 +74,7 @@ public interface FIStorage extends Function<Throwable, Void> {
      * @return 本次任务
      */
     default CompletableFuture<Void> updateLoadingThen(Runnable runnable) {
-        val future = getLoadingFuture().thenRun(runnable);
-        future.exceptionally(this);
+        val future = getLoadingFuture().thenRun(runnable).whenComplete(this);
         setLoadingFuture(future);
         return future;
     }
@@ -96,9 +86,13 @@ public interface FIStorage extends Function<Throwable, Void> {
      * @return 本次任务
      */
     default CompletableFuture<Void> updateSavingThen(Runnable runnable) {
-        val future = getSavingFuture().thenRun(runnable);
-        future.exceptionally(this);
+        val future = getSavingFuture().thenRun(runnable).whenComplete(this);
         setSavingFuture(future);
         return future;
+    }
+
+    @Override
+    default void accept(Void unused, Throwable throwable) {
+        if (throwable != null) throwable.printStackTrace();
     }
 }

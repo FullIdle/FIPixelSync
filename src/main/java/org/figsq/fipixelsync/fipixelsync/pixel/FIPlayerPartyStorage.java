@@ -11,8 +11,10 @@ import java.util.concurrent.CompletableFuture;
 @Setter
 public class FIPlayerPartyStorage extends PlayerPartyStorage implements FIStorage {
     private boolean freeze = false;
-    private CompletableFuture<Void> savingFuture;
-    private CompletableFuture<Void> loadingFuture;
+    private CompletableFuture<Void> savingFuture = CompletableFuture.runAsync(() -> {
+    });
+    private CompletableFuture<Void> loadingFuture = CompletableFuture.runAsync(() -> {
+    });
 
     public FIPlayerPartyStorage(UUID uuid) {
         super(uuid);

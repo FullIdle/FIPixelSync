@@ -8,6 +8,7 @@ import org.figsq.fipixelsync.fipixelsync.comm.IHandler;
 import org.figsq.fipixelsync.fipixelsync.comm.IMessage;
 import org.figsq.fipixelsync.fipixelsync.pixel.FIPCStorage;
 import org.figsq.fipixelsync.fipixelsync.pixel.FIPlayerPartyStorage;
+import org.figsq.fipixelsync.fipixelsync.pixel.FISaveAdapter;
 import org.figsq.fipixelsync.fipixelsync.pixel.FIStorageManager;
 
 import java.util.UUID;
@@ -49,13 +50,23 @@ public class PlayerJoinServerMessage implements IMessage {
         @Override
         public void handle(UUID sender, PlayerJoinServerMessage message) {
             //冻结(被插件手动冻结了的情况) / 加载(玩家加载顺序错了) / 保存(本身会重发) 排除冻结后，判断islock可以根据这个信息来直接推测
-
+            val owner = message.owner;
             val storageManager = FIStorageManager.getInstance();
-            val party = (FIPlayerPartyStorage) storageManager.getParty(message.owner);
-            val pc = (FIPCStorage) storageManager.getPCForPlayer(message.owner);
-            if (party.isFreeze() || pc.isFreeze()) throw new RuntimeException("玩家在切服时还被冻结着，这是不合理的!");
-            if (!party.isLock()) CommManager.publishTo(sender,new PlayerStorageRespondMessage(message.owner, true, false));
-            if (!pc.isLock()) CommManager.publishTo(sender,new PlayerStorageRespondMessage(message.owner, false, false));
+            val party = (FIPlayerPartyStorage) storageManager.getParty(owner);
+            val pc = (FIPCStorage) storageManager.getPCForPlayer(owner);
+            val partyWaitUUIDs = FISaveAdapter.partyWaitMap.get(owner);
+            val pcWaitUUIDs = FISaveAdapter.pcWaitMap.get(owner);
+            if ((partyWaitUUIDs == null || partyWaitUUIDs.isEmpty()) && (pcWaitUUIDs == null || pcWaitUUIDs.isEmpty())) {
+                //本服没有等待加载
+                if (!party.isLock(true)) {
+                    CommManager.publishTo(sender,new PlayerStorageRespondMessage(owner, true, false));
+                }
+                if (!pc.isLock(true)) {
+                    CommManager.publishTo(sender,new PlayerStorageRespondMessage(owner, false, false));
+                }
+                return;
+            }
+            //如果正在等待加载，那么这个进服请求就是其他服务器正在等待加载，选择不回复
         }
     }
 }

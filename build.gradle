@@ -21,6 +21,7 @@ repositories {
 configurations {
     pack
     compileClasspath.extendsFrom pack
+    runtimeClasspath.extendsFrom pack
 }
 
 dependencies {
@@ -60,5 +61,13 @@ jar {
     from(configurations.pack.collect {
         it.isDirectory() ? it : zipTree(it)
     })
+    exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.register("copy", Copy) {
+    from jar.archiveFile
+    into 'D:\\Minecraft\\Server\\Test\\Cat\\1.12.2\\3\\plugins'
+
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }

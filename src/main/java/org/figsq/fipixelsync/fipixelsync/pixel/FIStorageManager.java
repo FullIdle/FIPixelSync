@@ -9,6 +9,8 @@ import com.pixelmonmod.pixelmon.storage.ReforgedStorageManager;
 import lombok.Getter;
 import lombok.val;
 import org.apache.commons.lang3.tuple.Pair;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.figsq.fipixelsync.fipixelsync.comm.CommManager;
@@ -41,15 +43,49 @@ public class FIStorageManager extends ReforgedStorageManager {
 
     //= FIStorageManager
     public void register() {
-        unregister();
-        //=
         Pixelmon.moneyManager = this;
         Pixelmon.storageManager = this;
     }
 
     public void unregister() {
-        Pixelmon.moneyManager = this.originalBankAccountManager;
-        Pixelmon.storageManager = this.originalStorageManager;
+        try {
+            //将在线的玩家检查并执行保存尝试
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                val uniqueId = player.getUniqueId();
+                val party = this.getParty(uniqueId);
+                val pc = this.getPCForPlayer(uniqueId);
+                val saveAdapter = this.getFISaveAdapter();
+
+                if (party instanceof FIPlayerPartyStorage) try {
+                    saveAdapter.saveStorageData(((FIPlayerPartyStorage) party));
+                } catch (Exception e) {
+                    throw new RuntimeException("注销保存玩家>" + player.getName() + "的party失败", e);
+                }
+
+                if (pc instanceof FIPCStorage) try {
+                    saveAdapter.saveStorageData(((FIPCStorage) pc));
+                } catch (Exception e) {
+                    throw new RuntimeException("注销保存玩家>" + player.getName() + "的PC失败", e);
+                }
+            }
+
+            //等待所有缓存的保存
+            this.waitAllSavingFuture();
+
+            Pixelmon.moneyManager = this.originalBankAccountManager;
+            Pixelmon.storageManager = this.originalStorageManager;
+        } catch (Exception e) {
+            throw new RuntimeException("FIStorageManager unregister failed", e);
+        }
+    }
+
+    public void waitAllSavingFuture() {
+        this.parties.forEach((u, k) -> {
+            if (k instanceof FIStorage) ((FIStorage) k).getSavingFuture().join();
+        });
+        this.pcs.forEach((u, k) -> {
+            if (k instanceof FIStorage) ((FIStorage) k).getSavingFuture().join();
+        });
     }
 
     /**
@@ -57,11 +93,11 @@ public class FIStorageManager extends ReforgedStorageManager {
      *
      * @param uuid 玩家uuid
      */
-    public boolean isLock(UUID uuid) {
+    public boolean isLock(UUID uuid, boolean excludeFreezing) {
         val instance = getInstance();
         val party = instance.getParty(uuid);
         val pc = instance.getPCForPlayer(uuid);
-        return (party instanceof FIStorage && ((FIStorage) party).isLock()) || (pc instanceof FIStorage && ((FIStorage) pc).isLock());
+        return (party instanceof FIStorage && ((FIStorage) party).isLock(excludeFreezing)) || (pc instanceof FIStorage && ((FIStorage) pc).isLock(excludeFreezing));
     }
 
     public Map<UUID, PlayerPartyStorage> getParties() {
@@ -130,6 +166,7 @@ public class FIStorageManager extends ReforgedStorageManager {
      * @param event 玩家加入事件
      */
     public void onJoin(PlayerJoinEvent event) {
+        System.out.println("§a加服服务器");
         val player = event.getPlayer();
         val uuid = player.getUniqueId();
         val party = this.getParty(uuid);
@@ -138,7 +175,7 @@ public class FIStorageManager extends ReforgedStorageManager {
             player.kickPlayer("§c你的宝可梦数据非FIStorage请重新登录!");
             return;
         }
-        val saveAdapter = getFISaveAdapter();
-        saveAdapter.tryLoadStorageData((FIPlayerPartyStorage) party);
+        System.out.println("§a发送进服包");
+        FISaveAdapter.tryLoadStorageData((FIPlayerPartyStorage) party);
     }
 }

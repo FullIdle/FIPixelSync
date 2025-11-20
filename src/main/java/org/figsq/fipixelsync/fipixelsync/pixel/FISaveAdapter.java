@@ -72,7 +72,6 @@ public class FISaveAdapter implements IStorageSaveAdapter {
 
         //单服务器
         if (subscribedUUIDs.isEmpty()) {
-            System.out.println("是单服务器直接加载");
             loadStorageData(storage);
             //同时加载PC
             loadStorageData(((FIPCStorage) FIStorageManager.getInstance().getPCForPlayer(storage.uuid)));
@@ -84,7 +83,6 @@ public class FISaveAdapter implements IStorageSaveAdapter {
         partyWaitMap.put(uuid, new ArrayList<>(subscribedUUIDs));
         pcWaitMap.put(uuid, new ArrayList<>(subscribedUUIDs));
 
-        System.out.println("正式发送join包");
         CommManager.publish(new PlayerJoinServerMessage(uuid));
 
         //加载请求发送后，五秒后，检查等待键值对表内容是否还有
@@ -110,7 +108,6 @@ public class FISaveAdapter implements IStorageSaveAdapter {
     //=save
 
     public static void tryLoadStorageData(FIPlayerPartyStorage storage) {
-        System.out.println("冻结");
         storage.setFreeze(true);
         storage.updateLoadingThen(() -> requestLoadStorageData(storage));
     }
@@ -126,12 +123,9 @@ public class FISaveAdapter implements IStorageSaveAdapter {
 
     //正式加载nbt数据到Bukkit内
     private static <T extends PokemonStorage & FIStorage> void loadingStorageData(T storage) {
-        System.out.println("解冻");
         storage.setFreeze(false);
         val nbt = ConfigManager.mysql.getStorageData(storage);
-        System.out.println("nbt = " + nbt);
         if (nbt == null) return;
-        System.out.println("读nbt");
         storage.readFromNBT(nbt);
         //刷新客户端视角精灵
         FIStorageManager.clientRefreshStorage(storage);

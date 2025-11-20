@@ -71,11 +71,9 @@ public class PlayerStorageRespondMessage implements IMessage {
 
         @Override
         public void handle(UUID sender, PlayerStorageRespondMessage message) {
-            System.out.println("接受回复包");
             val storageManager = FIStorageManager.getInstance();
             val owner = message.owner;
             val isForce = message.isForce;
-            System.out.println("isForce = " + isForce);
             if (message.isParty) {
                 handle(sender, (FIPlayerPartyStorage) storageManager.getParty(owner), FISaveAdapter.partyWaitMap.get(owner), isForce);
                 return;
@@ -84,9 +82,7 @@ public class PlayerStorageRespondMessage implements IMessage {
         }
 
         public <T extends PokemonStorage & FIStorage> void handle(UUID sender, T storage, List<UUID> checkList, boolean isForce) {
-            System.out.println("checkList = " + checkList);
             if (!isForce && (checkList == null || !checkList.remove(sender) || !checkList.isEmpty())) return;
-            System.out.println("开始加载");
             FISaveAdapter.loadStorageData(storage);
         }
     }

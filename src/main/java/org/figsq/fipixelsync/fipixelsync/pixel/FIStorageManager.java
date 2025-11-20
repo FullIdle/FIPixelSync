@@ -197,7 +197,6 @@ public class FIStorageManager extends ReforgedStorageManager {
      * @param event 玩家加入事件
      */
     public void onJoin(PlayerJoinEvent event) {
-        System.out.println("§a加服服务器");
         val player = event.getPlayer();
         val uuid = player.getUniqueId();
         val party = this.getParty(uuid);
@@ -206,7 +205,7 @@ public class FIStorageManager extends ReforgedStorageManager {
             player.kickPlayer("§c你的宝可梦数据非FIStorage请重新登录!");
             return;
         }
-        System.out.println("§a发送进服包");
+        //玩家进服，只需要对party尝试加载，pc也会一起的
         FISaveAdapter.tryLoadStorageData((FIPlayerPartyStorage) party);
     }
 }

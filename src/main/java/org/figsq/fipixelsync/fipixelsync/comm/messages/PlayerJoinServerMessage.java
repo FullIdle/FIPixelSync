@@ -54,8 +54,8 @@ public class PlayerJoinServerMessage implements IMessage {
             val party = (FIPlayerPartyStorage) storageManager.getParty(message.owner);
             val pc = (FIPCStorage) storageManager.getPCForPlayer(message.owner);
             if (party.isFreeze() || pc.isFreeze()) throw new RuntimeException("玩家在切服时还被冻结着，这是不合理的!");
-            if (!party.isLock()) CommManager.publish(new PlayerStorageRespondMessage(message.owner, true, false));
-            if (!pc.isLock()) CommManager.publish(new PlayerStorageRespondMessage(message.owner, false, false));
+            if (!party.isLock()) CommManager.publishTo(sender,new PlayerStorageRespondMessage(message.owner, true, false));
+            if (!pc.isLock()) CommManager.publishTo(sender,new PlayerStorageRespondMessage(message.owner, false, false));
         }
     }
 }

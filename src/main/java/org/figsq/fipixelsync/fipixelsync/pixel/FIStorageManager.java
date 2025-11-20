@@ -1,9 +1,16 @@
 package org.figsq.fipixelsync.fipixelsync.pixel;
 
 import com.pixelmonmod.pixelmon.Pixelmon;
+import com.pixelmonmod.pixelmon.api.command.PixelmonCommand;
 import com.pixelmonmod.pixelmon.api.economy.IPixelmonBankAccountManager;
 import com.pixelmonmod.pixelmon.api.storage.IStorageManager;
 import com.pixelmonmod.pixelmon.api.storage.PCStorage;
+import com.pixelmonmod.pixelmon.api.storage.PokemonStorage;
+import com.pixelmonmod.pixelmon.api.storage.StoragePosition;
+import com.pixelmonmod.pixelmon.comm.EnumUpdateType;
+import com.pixelmonmod.pixelmon.comm.packetHandlers.clientStorage.newStorage.ClientSet;
+import com.pixelmonmod.pixelmon.comm.packetHandlers.clientStorage.newStorage.pc.ClientChangeOpenPC;
+import com.pixelmonmod.pixelmon.comm.packetHandlers.clientStorage.newStorage.pc.ClientInitializePC;
 import com.pixelmonmod.pixelmon.storage.PlayerPartyStorage;
 import com.pixelmonmod.pixelmon.storage.ReforgedStorageManager;
 import lombok.Getter;
@@ -39,6 +46,30 @@ public class FIStorageManager extends ReforgedStorageManager {
         if (!(Pixelmon.storageManager instanceof FIStorageManager))
             throw new RuntimeException("Pixelmon storageManager is not an instance of FIStorageManager");
         return (FIStorageManager) Pixelmon.storageManager;
+    }
+
+    /**
+     * 刷新客户端视角
+     */
+    public static void clientRefreshStorage(PokemonStorage storage) {
+        if (storage instanceof PCStorage) {
+            val pc = (PCStorage) storage;
+            val ep = PixelmonCommand.getEntityPlayer(pc.playerUUID);
+            if (ep == null) return;
+            Pixelmon.network.sendTo(new ClientInitializePC(pc), ep);
+            Pixelmon.network.sendTo(new ClientChangeOpenPC(pc.uuid), ep);
+            pc.sendContents(ep);
+        }
+        if (storage instanceof PlayerPartyStorage) {
+            val party = (PlayerPartyStorage) storage;
+            val player = party.getPlayer();
+            if (player == null) return;
+            val all = party.getAll();
+            for (int i = 0; i < all.length; i++)
+                Pixelmon.network.sendTo(new ClientSet(
+                        storage, new StoragePosition(-1, i), all[i], EnumUpdateType.CLIENT
+                ), player);
+        }
     }
 
     //= FIStorageManager

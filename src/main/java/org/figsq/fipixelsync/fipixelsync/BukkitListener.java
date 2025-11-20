@@ -34,7 +34,6 @@ public class BukkitListener implements Listener {
 
     @EventHandler
     public void onForge(ForgeEvent event) {
-        //TODO 之后或许用到
     }
 
     /*freeze 玩家大部分行为失效*/

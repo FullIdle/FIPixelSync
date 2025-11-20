@@ -28,33 +28,18 @@ import java.util.concurrent.ConcurrentMap;
  */
 @Getter
 public class FISaveAdapter implements IStorageSaveAdapter {
+    /**
+     * 背包存储的等待键值对表
+     */
+    public static final ConcurrentMap<UUID, List<UUID>> partyWaitMap = new ConcurrentHashMap<>();
+    /**
+     * PC存储的等待键值对表
+     */
+    public static final ConcurrentMap<UUID, List<UUID>> pcWaitMap = new ConcurrentHashMap<>();
     private final IStorageSaveAdapter originalSaveAdapter;
+
     public FISaveAdapter(IStorageSaveAdapter originalSaveAdapter) {
         this.originalSaveAdapter = originalSaveAdapter;
-    }
-
-    /**
-     * 按照原适配器的方式保存
-     *
-     * @param pokemonStorage 存储器
-     */
-    @Override
-    public void save(PokemonStorage pokemonStorage) {
-        //原始保存
-        originalSaveAdapter.save(pokemonStorage);
-    }
-
-    /**
-     * 实例化 {@link FIStorage} 存储，按照原适配器的方式加载入实例化后的存储
-     * 实际的加载最新数据在 {@link FIStorageManager#onJoin(PlayerJoinEvent)} 中
-     */
-    @NotNull
-    @Override
-    public <T extends PokemonStorage> T load(UUID uuid, Class<T> aClass) {
-        val fiStorage = newStorage(uuid, aClass);
-        //原始保存(原本的保留的)
-        fiStorage.readFromNBT(originalSaveAdapter.load(uuid, aClass).writeToNBT(new NBTTagCompound()));
-        return fiStorage;
     }
 
     @NotNull
@@ -65,32 +50,12 @@ public class FISaveAdapter implements IStorageSaveAdapter {
 
     //= FISaveAdapter
 
-    /**
-     * 背包存储的等待键值对表
-     */
-    public static final ConcurrentMap<UUID, List<UUID>> partyWaitMap = new ConcurrentHashMap<>();
-
-    /**
-     * PC存储的等待键值对表
-     */
-    public static final ConcurrentMap<UUID, List<UUID>> pcWaitMap = new ConcurrentHashMap<>();
-
-    //=save
-
     private static <T extends PokemonStorage & FIStorage> void savingStorageData(T storage) {
         //MYSQL存储
         ConfigManager.mysql.saveStorage(storage);
         //Redis 通讯 发送保存包 发送的强制包
         CommManager.publish(new PlayerStorageRespondMessage(storage.uuid, storage instanceof PlayerPartyStorage, true));
     }
-
-    public <T extends PokemonStorage & FIStorage> void saveStorageData(T fiStorage) {
-        //保存时候数据还在被加载或者其他保存则放弃保存行为
-        if (fiStorage.isLock(true)) return;
-        fiStorage.updateSavingThen(() -> savingStorageData(fiStorage));
-    }
-
-    //=load
 
     /**
      * 发送加服通知，让其他服务器回包给现在这个服务器然后进行处理
@@ -142,6 +107,8 @@ public class FISaveAdapter implements IStorageSaveAdapter {
         }, 20 * 5L);
     }
 
+    //=save
+
     public static void tryLoadStorageData(FIPlayerPartyStorage storage) {
         System.out.println("冻结");
         storage.setFreeze(true);
@@ -155,6 +122,8 @@ public class FISaveAdapter implements IStorageSaveAdapter {
         storage.updateLoadingThen(() -> loadingStorageData(storage));
     }
 
+    //=load
+
     //正式加载nbt数据到Bukkit内
     private static <T extends PokemonStorage & FIStorage> void loadingStorageData(T storage) {
         System.out.println("解冻");
@@ -164,6 +133,37 @@ public class FISaveAdapter implements IStorageSaveAdapter {
         if (nbt == null) return;
         System.out.println("读nbt");
         storage.readFromNBT(nbt);
+        //刷新客户端视角精灵
+        FIStorageManager.clientRefreshStorage(storage);
+    }
 
+    /**
+     * 按照原适配器的方式保存
+     *
+     * @param pokemonStorage 存储器
+     */
+    @Override
+    public void save(PokemonStorage pokemonStorage) {
+        //原始保存
+        originalSaveAdapter.save(pokemonStorage);
+    }
+
+    /**
+     * 实例化 {@link FIStorage} 存储，按照原适配器的方式加载入实例化后的存储
+     * 实际的加载最新数据在 {@link FIStorageManager#onJoin(PlayerJoinEvent)} 中
+     */
+    @NotNull
+    @Override
+    public <T extends PokemonStorage> T load(UUID uuid, Class<T> aClass) {
+        val fiStorage = newStorage(uuid, aClass);
+        //原始保存(原本的保留的)
+        fiStorage.readFromNBT(originalSaveAdapter.load(uuid, aClass).writeToNBT(new NBTTagCompound()));
+        return fiStorage;
+    }
+
+    public <T extends PokemonStorage & FIStorage> void saveStorageData(T fiStorage) {
+        //保存时候数据还在被加载或者其他保存则放弃保存行为
+        if (fiStorage.isLock(true)) return;
+        fiStorage.updateSavingThen(() -> savingStorageData(fiStorage));
     }
 }

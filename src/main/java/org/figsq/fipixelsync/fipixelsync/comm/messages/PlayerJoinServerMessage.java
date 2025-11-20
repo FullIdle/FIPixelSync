@@ -56,16 +56,13 @@ public class PlayerJoinServerMessage implements IMessage {
             val pc = (FIPCStorage) storageManager.getPCForPlayer(owner);
             val partyWaitUUIDs = FISaveAdapter.partyWaitMap.get(owner);
             val pcWaitUUIDs = FISaveAdapter.pcWaitMap.get(owner);
-            if ((partyWaitUUIDs == null || partyWaitUUIDs.isEmpty()) && (pcWaitUUIDs == null || pcWaitUUIDs.isEmpty())) {
-                //本服没有等待加载
-                if (!party.isLock(true)) {
-                    CommManager.publishTo(sender,new PlayerStorageRespondMessage(owner, true, false));
-                }
-                if (!pc.isLock(true)) {
-                    CommManager.publishTo(sender,new PlayerStorageRespondMessage(owner, false, false));
-                }
+            if ((partyWaitUUIDs != null && !partyWaitUUIDs.isEmpty()) || (pcWaitUUIDs != null && !pcWaitUUIDs.isEmpty()))
                 return;
-            }
+            //本服没有等待加载
+            if (!party.isLock(true))
+                CommManager.publishTo(sender, new PlayerStorageRespondMessage(owner, true, false));
+            if (!pc.isLock(true))
+                CommManager.publishTo(sender, new PlayerStorageRespondMessage(owner, false, false));
             //如果正在等待加载，那么这个进服请求就是其他服务器正在等待加载，选择不回复
         }
     }

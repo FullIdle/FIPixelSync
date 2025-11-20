@@ -14,7 +14,7 @@ repositories {
     }
     maven {
         allowInsecureProtocol = true
-        url "http://server.pokemtd.top:31647/snapshots"
+        url "http://localhost:31647/snapshots"
     }
 }
 
@@ -30,7 +30,7 @@ dependencies {
     compileOnly 'com.pixelmonmod.pixelmon:Pixelmon:1.12.2-8.4.3'
     compileOnly 'me.forge.forgedev:ForgeDev:1.12.2'
 
-    compileOnly 'me.fullidle.ficore.ficore:FICore:1.3'
+    compileOnly 'me.fullidle.ficore.ficore:FICore:1.3.4-SNAPSHOT'
 
     pack 'redis.clients:jedis:6.0.0'
 

@@ -2,12 +2,13 @@ package org.figsq.fipixelsync.fipixelsync.comm.messages;
 
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
-import org.bukkit.Bukkit;
-import org.figsq.fipixelsync.fipixelsync.Main;
+import lombok.val;
 import org.figsq.fipixelsync.fipixelsync.comm.CommManager;
 import org.figsq.fipixelsync.fipixelsync.comm.IHandler;
 import org.figsq.fipixelsync.fipixelsync.comm.IMessage;
-import org.figsq.fipixelsync.fipixelsync.pixel.FIPixelSyncStorageManager;
+import org.figsq.fipixelsync.fipixelsync.pixel.FIPCStorage;
+import org.figsq.fipixelsync.fipixelsync.pixel.FIPlayerPartyStorage;
+import org.figsq.fipixelsync.fipixelsync.pixel.FIStorageManager;
 
 import java.util.UUID;
 
@@ -37,20 +38,24 @@ public class PlayerJoinServerMessage implements IMessage {
         return this;
     }
 
+    @Override
+    public boolean canNotifyPublisher() {
+        return false;
+    }
+
     public static class Handler implements IHandler<PlayerJoinServerMessage> {
         public static final Handler INSTANCE = new Handler();
 
         @Override
         public void handle(UUID sender, PlayerJoinServerMessage message) {
-            Bukkit.getScheduler().runTask(Main.INSTANCE, () -> {
-                //转同步将更新包发送给信息发送者
-                //同步者需要等待所有子服-1回复更新包
-                if (FIPixelSyncStorageManager.isSaveWait(message.owner)) return; //有可能是该服正在保存，这会发送强更新
-                CommManager.publishTo(sender,
-                        new PlayerStorageUpdateMessage(message.owner, true, false),
-                        new PlayerStorageUpdateMessage(message.owner, false, false)
-                );
-            });
+            //冻结(被插件手动冻结了的情况) / 加载(玩家加载顺序错了) / 保存(本身会重发) 排除冻结后，判断islock可以根据这个信息来直接推测
+
+            val storageManager = FIStorageManager.getInstance();
+            val party = (FIPlayerPartyStorage) storageManager.getParty(message.owner);
+            val pc = (FIPCStorage) storageManager.getPCForPlayer(message.owner);
+            if (party.isFreeze() || pc.isFreeze()) throw new RuntimeException("玩家在切服时还被冻结着，这是不合理的!");
+            if (!party.isLock()) CommManager.publish(new PlayerStorageRespondMessage(message.owner, true, false));
+            if (!pc.isLock()) CommManager.publish(new PlayerStorageRespondMessage(message.owner, false, false));
         }
     }
 }

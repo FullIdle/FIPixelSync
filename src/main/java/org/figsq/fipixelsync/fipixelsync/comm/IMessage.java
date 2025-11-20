@@ -8,6 +8,7 @@ import com.google.common.io.ByteArrayDataOutput;
  */
 public interface IMessage {
     ByteArrayDataOutput encode(ByteArrayDataOutput buffer);
+
     /**
      * 返回该对象本身
      */
@@ -18,5 +19,6 @@ public interface IMessage {
      */
     default boolean canNotifyPublisher() {
         return true;
-    };
+    }
+
 }

@@ -3,16 +3,13 @@ package org.figsq.fipixelsync.fipixelsync.comm;
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteStreams;
 import lombok.val;
-import org.figsq.fipixelsync.fipixelsync.comm.messages.PlayerCaptureMessage;
 import org.figsq.fipixelsync.fipixelsync.comm.messages.PlayerJoinServerMessage;
-import org.figsq.fipixelsync.fipixelsync.comm.messages.PlayerStorageUpdateMessage;
+import org.figsq.fipixelsync.fipixelsync.comm.messages.PlayerStorageRespondMessage;
 import org.figsq.fipixelsync.fipixelsync.config.ConfigManager;
 
 import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 public class CommManager {
@@ -22,7 +19,13 @@ public class CommManager {
     public static PacketHandlerPubSub globalPubSub;
     public static PacketHandlerPubSub singlePubSub;
 
-    public static <T extends IMessage> void registerMessageHandler(final Class<T> message,final IHandler<T> handler) {
+    static {
+        //注册我自己默认需要用的包
+        registerMessageHandler(PlayerStorageRespondMessage.class, PlayerStorageRespondMessage.Handler.INSTANCE);
+        registerMessageHandler(PlayerJoinServerMessage.class, PlayerJoinServerMessage.Handler.INSTANCE);
+    }
+
+    public static <T extends IMessage> void registerMessageHandler(final Class<T> message, final IHandler<T> handler) {
         registeredMessageHandler.put(message, handler);
     }
 
@@ -39,17 +42,34 @@ public class CommManager {
         val uuid = UUID.randomUUID();
         globalPubSub = new PacketHandlerPubSub(uuid);
         singlePubSub = new PacketHandlerPubSub(uuid);
-        CompletableFuture.runAsync(() -> {
+        globalPubSub.future = CompletableFuture.runAsync(() -> {
             try (val resource = ConfigManager.redis.getResource()) {
                 resource.subscribe(globalPubSub, CHANNEL_BYTES);
             }
         });
         val toUUIDChannelBytes = getToUUIDChannelBytes(singlePubSub.uuid);
-        CompletableFuture.runAsync(() -> {
+        singlePubSub.future = CompletableFuture.runAsync(() -> {
             try (val resource = ConfigManager.redis.getResource()) {
                 resource.subscribe(singlePubSub, toUUIDChannelBytes);
             }
         });
+    }
+
+    /**
+     * 获取所有订阅的UUID
+     *
+     * @return 所有已经订阅的服务器的通讯uuid
+     */
+    public static Collection<UUID> getAllSubscribedUUID() {
+        val head = CommManager.CHANNEL + ":";
+        val uuids = new ArrayList<UUID>();
+        try (
+                val resource = ConfigManager.redis.getResource()
+        ) {
+            for (String channel : resource.pubsubChannels())
+                if (channel.startsWith(head)) uuids.add(UUID.fromString(channel.substring(head.length())));
+        }
+        return uuids;
     }
 
     public static byte[] getToUUIDChannelBytes(final UUID uuid) {
@@ -124,13 +144,14 @@ public class CommManager {
 
     public static void unsubscribe() {
         globalPubSub.unsubscribe();
+        try {
+            globalPubSub.future.cancel(true);
+        } catch (Exception ignored) {
+        }
         singlePubSub.unsubscribe();
-    }
-
-    static {
-        //注册我自己默认需要用的包
-        registerMessageHandler(PlayerStorageUpdateMessage.class, PlayerStorageUpdateMessage.Handler.INSTANCE);
-        registerMessageHandler(PlayerCaptureMessage.class, PlayerCaptureMessage.Handler.INSTANCE);
-        registerMessageHandler(PlayerJoinServerMessage.class, PlayerJoinServerMessage.Handler.INSTANCE);
+        try {
+            singlePubSub.future.cancel(true);
+        } catch (Exception ignored) {
+        }
     }
 }

@@ -8,7 +8,7 @@ public final class ConfigManager {
     public static Redis redis;
 
     public static void load() {
-        val plugin = Main.INSTANCE;
+        val plugin = Main.PLUGIN;
         val config = plugin.getConfig();
         val mysqlSection = config.getConfigurationSection("mysql");
         val redisSection = config.getConfigurationSection("redis");

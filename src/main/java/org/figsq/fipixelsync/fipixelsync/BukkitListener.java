@@ -1,9 +1,15 @@
 package org.figsq.fipixelsync.fipixelsync;
 
-import com.pixelmonmod.pixelmon.api.events.CaptureEvent;
 import com.pixelmonmod.pixelmon.api.events.ThrowPokeballEvent;
 import lombok.val;
 import me.fullidle.ficore.ficore.common.api.event.ForgeEvent;
+import net.minecraft.server.v1_12_R1.EntityPlayer;
+import net.minecraftforge.fml.common.eventhandler.Event;
+import org.bukkit.Bukkit;
+import org.bukkit.craftbukkit.v1_12_R1.CraftServer;
+import org.bukkit.craftbukkit.v1_12_R1.entity.CraftEntity;
+import org.bukkit.entity.Player;
+import org.bukkit.event.Cancellable;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -11,29 +17,24 @@ import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.figsq.fipixelsync.fipixelsync.optimize.CaptureOpt;
-import org.figsq.fipixelsync.fipixelsync.optimize.StorageOpt;
-import org.figsq.fipixelsync.fipixelsync.pixel.FIPixelSyncStorageManager;
+import org.figsq.fipixelsync.fipixelsync.pixel.FIStorageManager;
 
 public class BukkitListener implements Listener {
     public static final BukkitListener INSTANCE = new BukkitListener();
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
-        StorageOpt.onJoin(event);
+        FIStorageManager.getInstance().onJoin(event);
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
-        StorageOpt.onQuit(event);
+        FIStorageManager.getInstance().onQuit(event);
     }
 
     @EventHandler
     public void onForge(ForgeEvent event) {
-        if (event.getForgeEvent() instanceof CaptureEvent.SuccessfulCapture) {
-            val e = (CaptureEvent.SuccessfulCapture) event.getForgeEvent();
-            CaptureOpt.onCapture(e);
-        }
+        //TODO 之后或许用到
     }
 
     /*freeze 玩家大部分行为失效*/
@@ -41,26 +42,37 @@ public class BukkitListener implements Listener {
             priority = EventPriority.LOWEST
     )
     public void interact(final PlayerInteractEvent event) {
-        if (FIPixelSyncStorageManager.isLock(event.getPlayer().getUniqueId())) event.setCancelled(true);
+        check(event, event.getPlayer());
     }
+
     @EventHandler(
             priority = EventPriority.LOWEST
     )
     public void command(final PlayerCommandPreprocessEvent event) {
-        if (FIPixelSyncStorageManager.isLock(event.getPlayer().getUniqueId())) event.setCancelled(true);
+        check(event, event.getPlayer());
     }
+
     @EventHandler(
             priority = EventPriority.LOWEST
     )
     public void onPlayerInteract(final PlayerCommandPreprocessEvent event) {
-        if (FIPixelSyncStorageManager.isLock(event.getPlayer().getUniqueId())) event.setCancelled(true);
+        check(event, event.getPlayer());
     }
+
     @EventHandler
-    public void forge(ForgeEvent event){
+    public void forge(ForgeEvent event) {
         if (event.getForgeEvent() instanceof ThrowPokeballEvent) {
             val e = (ThrowPokeballEvent) event.getForgeEvent();
-            if (FIPixelSyncStorageManager.isLock(e.player.func_110124_au())) e.setCanceled(true);
+            check(e, ((Player) CraftEntity.getEntity(((CraftServer) Bukkit.getServer()), (((EntityPlayer) (Object) e.player)))));
         }
+    }
+
+    private void check(Cancellable cancellable, Player player) {
+        if (FIStorageManager.getInstance().isLock(player.getUniqueId())) cancellable.setCancelled(true);
+    }
+
+    private void check(Event event, Player player) {
+        if (FIStorageManager.getInstance().isLock(player.getUniqueId())) event.setCanceled(true);
     }
     /*freeze ==*/
 }

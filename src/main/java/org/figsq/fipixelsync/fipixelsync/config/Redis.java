@@ -38,7 +38,7 @@ public class Redis {
         ) : new JedisPool(host, port);
     }
 
-    public boolean isInitialized(){
+    public boolean isInitialized() {
         return this.pool != null;
     }
 
